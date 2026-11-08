@@ -1,0 +1,760 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
+
+package com.leissa.slimtrack.ui.today
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.leissa.slimtrack.data.Food
+import com.leissa.slimtrack.data.FoodSearchOutcome
+import com.leissa.slimtrack.data.FoodSearchResult
+import com.leissa.slimtrack.data.FoodSource
+import com.leissa.slimtrack.data.Meal
+import com.leissa.slimtrack.ui.scan.BarcodeScannerDialog
+import com.leissa.slimtrack.util.gramsText
+import com.leissa.slimtrack.util.kcalText
+import com.leissa.slimtrack.util.quantityText
+import com.leissa.slimtrack.util.toDecimalOrNull
+import kotlinx.coroutines.launch
+
+private enum class AddMode(val label: String) {
+    MY_FOODS("My foods"),
+    DATABASES("Databases"),
+    SCAN("Scan"),
+}
+
+@Composable
+fun AddEntrySheet(
+    foods: List<Food>,
+    initialMeal: Meal,
+    onDismiss: () -> Unit,
+    onAdd: (foodId: Long, meal: Meal, quantity: Double) -> Unit,
+    onAddCustom: (
+        name: String,
+        servingLabel: String,
+        calories: Int,
+        protein: Double,
+        carbs: Double,
+        fat: Double,
+        meal: Meal,
+        quantity: Double,
+    ) -> Unit,
+    onAddProduct: (food: Food, meal: Meal, quantity: Double) -> Unit,
+    onSearchFoods: suspend (String) -> FoodSearchOutcome,
+    onResolveSearchResult: suspend (FoodSearchResult) -> Food?,
+    onLookupBarcode: suspend (String) -> Food?,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    var modeName by rememberSaveable { mutableStateOf(AddMode.MY_FOODS.name) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedFoodId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var mealName by rememberSaveable { mutableStateOf(initialMeal.name) }
+    var quantity by rememberSaveable { mutableStateOf(1.0) }
+    var customMode by rememberSaveable { mutableStateOf(false) }
+
+    var onlineResults by remember { mutableStateOf<List<FoodSearchResult>>(emptyList()) }
+    var onlineLoading by remember { mutableStateOf(false) }
+    var onlineNote by remember { mutableStateOf<String?>(null) }
+    var onlineError by remember { mutableStateOf<String?>(null) }
+    var resolving by remember { mutableStateOf<String?>(null) }
+    var pendingProduct by remember { mutableStateOf<FoodSearchResult?>(null) }
+    var scanning by remember { mutableStateOf(false) }
+    var manualBarcode by rememberSaveable { mutableStateOf("") }
+
+    val mode = AddMode.valueOf(modeName)
+    val meal = Meal.valueOf(mealName)
+    val selectedFood = foods.firstOrNull { it.id == selectedFoodId }
+    val filteredFoods = remember(foods, query) {
+        val needle = query.trim()
+        if (needle.isEmpty()) {
+            foods
+        } else {
+            foods.filter { it.name.contains(needle, ignoreCase = true) }
+        }
+    }
+
+    fun searchDatabases() {
+        val term = query.trim()
+        if (term.isEmpty()) return
+        scope.launch {
+            onlineLoading = true
+            onlineError = null
+            onlineNote = null
+            try {
+                val outcome = onSearchFoods(term)
+                onlineResults = outcome.results
+                if (outcome.onlineUnavailable) {
+                    onlineNote = "Online databases unavailable — showing German foods (BLS) only."
+                }
+                if (outcome.results.isEmpty()) {
+                    onlineError = "No foods found for \"$term\"."
+                }
+            } catch (error: Exception) {
+                onlineError = "Search failed. Check your connection."
+            } finally {
+                onlineLoading = false
+            }
+        }
+    }
+
+    fun selectSearchResult(result: FoodSearchResult) {
+        val ready = result.food
+        if (ready != null) {
+            pendingProduct = result
+            return
+        }
+        scope.launch {
+            resolving = result.reference ?: result.name
+            onlineError = null
+            try {
+                val food = onResolveSearchResult(result)
+                if (food == null) {
+                    onlineError = "Couldn't load \"${result.name}\" from FDDB."
+                } else {
+                    pendingProduct = result.copy(food = food)
+                }
+            } catch (error: Exception) {
+                onlineError = "Couldn't load \"${result.name}\". Check your connection."
+            } finally {
+                resolving = null
+            }
+        }
+    }
+
+    fun lookupBarcode(code: String) {
+        val clean = code.trim()
+        if (clean.isEmpty()) return
+        scope.launch {
+            onlineLoading = true
+            onlineError = null
+            try {
+                val food = onLookupBarcode(clean)
+                if (food == null) {
+                    onlineError = "No product for barcode $clean."
+                } else {
+                    pendingProduct = FoodSearchResult(
+                        name = food.name,
+                        source = FoodSource.OPEN_FOOD_FACTS,
+                        food = food,
+                    )
+                }
+            } catch (error: Exception) {
+                onlineError = "Lookup failed. Check your connection and the barcode."
+            } finally {
+                onlineLoading = false
+            }
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .imePadding(),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (customMode) "New food" else "Add food",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                if (mode == AddMode.MY_FOODS && pendingProduct == null) {
+                    TextButton(
+                        onClick = {
+                            customMode = !customMode
+                            selectedFoodId = null
+                        },
+                    ) {
+                        Text(if (customMode) "Pick from list" else "New food")
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            val pendingSearch = pendingProduct
+            val pendingFood = pendingSearch?.food
+            val pendingSource = pendingSearch?.source
+            when {
+                customMode -> CustomFoodForm(
+                    meal = meal,
+                    onMealChange = { mealName = it.name },
+                    quantity = quantity,
+                    onQuantityChange = { quantity = it },
+                    onSubmit = onAddCustom,
+                )
+
+                pendingFood != null && pendingSource != null -> SelectedFoodEditor(
+                    food = pendingFood,
+                    subtitle = "${pendingSource.label} · per ${pendingFood.servingLabel}",
+                    meal = meal,
+                    onMealChange = { mealName = it.name },
+                    quantity = quantity,
+                    onQuantityChange = { quantity = it },
+                    onBack = {
+                        pendingProduct = null
+                        onlineError = null
+                    },
+                    onAdd = { onAddProduct(pendingFood, meal, quantity) },
+                )
+
+                selectedFood != null -> SelectedFoodEditor(
+                    food = selectedFood,
+                    subtitle = "Saved food",
+                    meal = meal,
+                    onMealChange = { mealName = it.name },
+                    quantity = quantity,
+                    onQuantityChange = { quantity = it },
+                    onBack = { selectedFoodId = null },
+                    onAdd = { onAdd(selectedFood.id, meal, quantity) },
+                )
+
+                else -> {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AddMode.entries.forEach { option ->
+                            FilterChip(
+                                selected = mode == option,
+                                onClick = {
+                                    modeName = option.name
+                                    onlineError = null
+                                    onlineNote = null
+                                    onlineResults = emptyList()
+                                    query = ""
+                                },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+
+                    when (mode) {
+                        AddMode.MY_FOODS -> LocalFoodPicker(
+                            query = query,
+                            onQueryChange = { query = it },
+                            foods = filteredFoods,
+                            onSelect = { selectedFoodId = it.id },
+                        )
+
+                        AddMode.DATABASES -> DatabaseFoodPicker(
+                            query = query,
+                            onQueryChange = { query = it },
+                            onSearch = ::searchDatabases,
+                            loading = onlineLoading,
+                            note = onlineNote,
+                            error = onlineError,
+                            results = onlineResults,
+                            resolving = resolving,
+                            onSelect = ::selectSearchResult,
+                        )
+
+                        AddMode.SCAN -> ScanPicker(
+                            loading = onlineLoading,
+                            error = onlineError,
+                            manualBarcode = manualBarcode,
+                            onManualBarcodeChange = { manualBarcode = it },
+                            onScan = { scanning = true },
+                            onLookup = { lookupBarcode(manualBarcode) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (scanning) {
+        BarcodeScannerDialog(
+            onDismiss = { scanning = false },
+            onBarcode = { code ->
+                scanning = false
+                manualBarcode = code
+                lookupBarcode(code)
+            },
+        )
+    }
+}
+
+@Composable
+private fun LocalFoodPicker(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    foods: List<Food>,
+    onSelect: (Food) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text("Search foods") },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
+        items(foods, key = { it.id }) { food ->
+            FoodRow(food = food, source = null, onClick = { onSelect(food) })
+        }
+        if (foods.isEmpty()) {
+            item {
+                Text(
+                    text = if (query.isBlank()) {
+                        "No foods yet. Tap \"New food\" to create one."
+                    } else {
+                        "No foods match \"$query\""
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DatabaseFoodPicker(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    loading: Boolean,
+    note: String?,
+    error: String?,
+    results: List<FoodSearchResult>,
+    resolving: String?,
+    onSelect: (FoodSearchResult) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text("Search BLS, FDDB or Open Food Facts") },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    Button(
+        onClick = onSearch,
+        enabled = query.isNotBlank() && !loading,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Search databases")
+    }
+    Spacer(Modifier.height(8.dp))
+    if (loading) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.size(10.dp))
+            Text("Looking up…", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    if (error != null) {
+        Text(
+            text = error,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+    }
+    if (note != null) {
+        Text(
+            text = note,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+    }
+    if (results.isNotEmpty()) {
+        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+            items(
+                results,
+                key = { "${it.source}-${it.name}-${it.food?.calories ?: 0}" },
+            ) { result ->
+                if (result.food != null) {
+                    FoodRow(
+                        food = result.food,
+                        source = result.source,
+                        onClick = { onSelect(result) },
+                    )
+                } else {
+                    PendingFoodRow(
+                        result = result,
+                        loading = resolving == result.reference,
+                        onClick = { onSelect(result) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingFoodRow(result: FoodSearchResult, loading: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !loading, onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                result.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${result.source.label} · tap to load nutrition",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        }
+    }
+}
+
+@Composable
+private fun FoodRow(food: Food, source: FoodSource?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                food.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = buildString {
+                    if (source != null) append(source.label).append(" · ")
+                    append(food.servingLabel)
+                    append(" · P ").append(food.proteinGrams.gramsText())
+                    append(" · C ").append(food.carbsGrams.gramsText())
+                    append(" · F ").append(food.fatGrams.gramsText())
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text("${food.calories} kcal", style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun ScanPicker(
+    loading: Boolean,
+    error: String?,
+    manualBarcode: String,
+    onManualBarcodeChange: (String) -> Unit,
+    onScan: () -> Unit,
+    onLookup: () -> Unit,
+) {
+    Text(
+        text = "Point the camera at a product barcode, or type the digits printed under it.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(12.dp))
+    Button(onClick = onScan, modifier = Modifier.fillMaxWidth()) {
+        Text("Scan with camera")
+    }
+    Spacer(Modifier.height(16.dp))
+    OutlinedTextField(
+        value = manualBarcode,
+        onValueChange = { onManualBarcodeChange(it.filter(Char::isDigit)) },
+        label = { Text("Barcode") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = onLookup,
+        enabled = manualBarcode.isNotBlank() && !loading,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Look up barcode")
+    }
+    if (loading) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.size(10.dp))
+            Text("Looking up…", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    if (error != null) {
+        Text(
+            text = error,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun FoodRow(food: Food, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(food.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "${food.servingLabel} · P ${food.proteinGrams.gramsText()} · " +
+                    "C ${food.carbsGrams.gramsText()} · F ${food.fatGrams.gramsText()}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text("${food.calories} kcal", style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun SelectedFoodEditor(
+    food: Food,
+    subtitle: String,
+    meal: Meal,
+    onMealChange: (Meal) -> Unit,
+    quantity: Double,
+    onQuantityChange: (Double) -> Unit,
+    onBack: () -> Unit,
+    onAdd: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(food.name, style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = "$subtitle · ${food.calories} kcal per ${food.servingLabel}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(16.dp))
+        Text("Meal", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(8.dp))
+        MealChips(selected = meal, onSelect = onMealChange)
+        Spacer(Modifier.height(16.dp))
+        ServingsStepper(quantity = quantity, onQuantityChange = onQuantityChange)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "${(food.calories * quantity).kcalText()} kcal · " +
+                "P ${(food.proteinGrams * quantity).gramsText()} · " +
+                "C ${(food.carbsGrams * quantity).gramsText()} · " +
+                "F ${(food.fatGrams * quantity).gramsText()}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(20.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Back") }
+            Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Add") }
+        }
+    }
+}
+
+@Composable
+private fun CustomFoodForm(
+    meal: Meal,
+    onMealChange: (Meal) -> Unit,
+    quantity: Double,
+    onQuantityChange: (Double) -> Unit,
+    onSubmit: (
+        name: String,
+        servingLabel: String,
+        calories: Int,
+        protein: Double,
+        carbs: Double,
+        fat: Double,
+        meal: Meal,
+        quantity: Double,
+    ) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var servingLabel by rememberSaveable { mutableStateOf("100 g") }
+    var calories by rememberSaveable { mutableStateOf("") }
+    var protein by rememberSaveable { mutableStateOf("") }
+    var carbs by rememberSaveable { mutableStateOf("") }
+    var fat by rememberSaveable { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 480.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Food name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = servingLabel,
+            onValueChange = { servingLabel = it },
+            label = { Text("Serving, e.g. 100 g") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = calories,
+            onValueChange = { value -> calories = value.filter(Char::isDigit) },
+            label = { Text("Calories") },
+            suffix = { Text("kcal") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MacroField("Protein", protein, { protein = it }, Modifier.weight(1f))
+            MacroField("Carbs", carbs, { carbs = it }, Modifier.weight(1f))
+            MacroField("Fat", fat, { fat = it }, Modifier.weight(1f))
+        }
+        Text("Meal", style = MaterialTheme.typography.labelLarge)
+        MealChips(selected = meal, onSelect = onMealChange)
+        ServingsStepper(quantity = quantity, onQuantityChange = onQuantityChange)
+        Spacer(Modifier.height(4.dp))
+        Button(
+            onClick = {
+                val kcal = calories.toIntOrNull() ?: return@Button
+                onSubmit(
+                    name.trim(),
+                    servingLabel.trim().ifBlank { "1 serving" },
+                    kcal,
+                    protein.toDecimalOrNull() ?: 0.0,
+                    carbs.toDecimalOrNull() ?: 0.0,
+                    fat.toDecimalOrNull() ?: 0.0,
+                    meal,
+                    quantity,
+                )
+            },
+            enabled = name.isNotBlank() && (calories.toIntOrNull() ?: -1) >= 0,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Add food")
+        }
+    }
+}
+
+@Composable
+private fun MacroField(label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { input ->
+            onValueChange(input.filter { it.isDigit() || it == '.' || it == ',' })
+        },
+        label = { Text(label) },
+        suffix = { Text("g") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun MealChips(selected: Meal, onSelect: (Meal) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Meal.entries.forEach { meal ->
+            FilterChip(
+                selected = selected == meal,
+                onClick = { onSelect(meal) },
+                label = { Text(meal.label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServingsStepper(quantity: Double, onQuantityChange: (Double) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "Servings",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.weight(1f),
+        )
+        FilledTonalIconButton(
+            onClick = { onQuantityChange((quantity - 0.5).coerceAtLeast(0.5)) },
+            modifier = Modifier.semantics { contentDescription = "Fewer servings" },
+        ) {
+            Text("−", style = MaterialTheme.typography.titleLarge)
+        }
+        Text(
+            text = quantity.quantityText(),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        FilledTonalIconButton(
+            onClick = { onQuantityChange((quantity + 0.5).coerceAtMost(20.0)) },
+            modifier = Modifier.semantics { contentDescription = "More servings" },
+        ) {
+            Text("+", style = MaterialTheme.typography.titleLarge)
+        }
+    }
+}

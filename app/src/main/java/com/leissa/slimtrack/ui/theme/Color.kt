@@ -1,0 +1,41 @@
+package com.leissa.slimtrack.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Light palette
+val Green40 = Color(0xFF2E7D32)
+val GreenContainerLight = Color(0xFFB9F0B9)
+val OnGreenContainerLight = Color(0xFF062607)
+val Teal40 = Color(0xFF00695C)
+val TealContainerLight = Color(0xFFB2DFDB)
+val OnTealContainerLight = Color(0xFF00201C)
+val Orange40 = Color(0xFFE65100)
+val SurfaceLight = Color(0xFFF8FAF6)
+val OnSurfaceLight = Color(0xFF191C19)
+val SurfaceVariantLight = Color(0xFFDEE5DB)
+val OnSurfaceVariantLight = Color(0xFF424940)
+val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFF2F6EF)
+val SurfaceContainerLight = Color(0xFFECF0E9)
+val SurfaceContainerHighLight = Color(0xFFE7EBE4)
+val SurfaceContainerHighestLight = Color(0xFFE1E5DE)
+
+// Dark palette
+val Green80 = Color(0xFF9CD89E)
+val OnGreenDark = Color(0xFF003910)
+val GreenContainerDark = Color(0xFF17561E)
+val OnGreenContainerDark = Color(0xFFB9F0B9)
+val Teal80 = Color(0xFF80CBC4)
+val OnTealDark = Color(0xFF00382F)
+val TealContainerDark = Color(0xFF005046)
+val OnTealContainerDark = Color(0xFFB2DFDB)
+val Orange80 = Color(0xFFFFB74D)
+val SurfaceDark = Color(0xFF101410)
+val OnSurfaceDark = Color(0xFFE2E3DD)
+val SurfaceVariantDark = Color(0xFF424940)
+val OnSurfaceVariantDark = Color(0xFFC2C9BE)
+val SurfaceContainerLowestDark = Color(0xFF0B0F0B)
+val SurfaceContainerLowDark = Color(0xFF181C18)
+val SurfaceContainerDark = Color(0xFF1C201C)
+val SurfaceContainerHighDark = Color(0xFF262A26)
+val SurfaceContainerHighestDark = Color(0xFF313531)
