@@ -84,7 +84,7 @@ def main():
         for code, name, kcal, protein, fat, carbs in rows(workbook):
             name = " ".join(name.split())
             calories = round(number(kcal))
-            if not name or calories <= 0 or calories > 1500:
+            if not name or calories < 0 or calories > 1500:
                 continue
             key = (name.lower(), calories)
             if key in seen:

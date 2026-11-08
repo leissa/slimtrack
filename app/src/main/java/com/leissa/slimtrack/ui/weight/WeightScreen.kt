@@ -22,8 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -60,7 +62,6 @@ import com.leissa.slimtrack.util.dayLabel
 import com.leissa.slimtrack.util.parseWeightToKg
 import com.leissa.slimtrack.util.weightUnitLabel
 import java.time.LocalDate
-import java.util.Locale
 
 private enum class ChartRange(val label: String, val days: Long?) {
     MONTH("1M", 30),
@@ -234,6 +235,7 @@ fun WeightScreen(viewModel: WeightViewModel, modifier: Modifier = Modifier) {
 @Composable
 private fun CurrentWeightCard(state: WeightUiState) {
     val unit = state.profile.unitSystem
+    val locale = LocalConfiguration.current.locales[0]
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
@@ -258,7 +260,7 @@ private fun CurrentWeightCard(state: WeightUiState) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = if (state.latest == null) "—" else "%.1f".format(Locale.getDefault(), state.bmi),
+                        text = if (state.latest == null) "—" else "%.1f".format(locale, state.bmi),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -281,7 +283,7 @@ private fun CurrentWeightCard(state: WeightUiState) {
                     )
                     Text(
                         text = "BMI %.1f · ${Energy.bmiCategory(state.targetBmi)}"
-                            .format(Locale.getDefault(), state.targetBmi),
+                            .format(locale, state.targetBmi),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -316,6 +318,7 @@ private fun WeightRow(
     bmi: Double,
     onDelete: () -> Unit,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -328,7 +331,7 @@ private fun WeightRow(
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = "BMI %.1f".format(Locale.getDefault(), bmi),
+                text = "BMI %.1f".format(locale, bmi),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -355,7 +358,7 @@ private fun AddWeightDialog(
     onDismiss: () -> Unit,
     onSave: (LocalDate, Double) -> Unit,
 ) {
-    var dateEpochDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    var dateEpochDay by rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     val date = LocalDate.ofEpochDay(dateEpochDay)
     val existingForDate = existing.firstOrNull { it.epochDay == dateEpochDay }
     var weightText by rememberSaveable(dateEpochDay, initialWeightKg) {
@@ -374,7 +377,7 @@ private fun AddWeightDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = { dateEpochDay -= 1 }) {
-                        Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
                     }
                     Text(
                         text = date.dayLabel(),
@@ -388,7 +391,7 @@ private fun AddWeightDialog(
                         },
                         enabled = dateEpochDay < LocalDate.now().toEpochDay(),
                     ) {
-                        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Next day")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day")
                     }
                 }
                 Spacer(Modifier.height(8.dp))

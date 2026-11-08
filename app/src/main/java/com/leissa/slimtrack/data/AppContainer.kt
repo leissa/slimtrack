@@ -30,14 +30,16 @@ class AppContainer(context: Context) {
 
     init {
         scope.launch {
-            if (foodDao.count() == 0) {
-                foodDao.insertAll(SeedFoods.items)
+            // The profile row is the first-launch marker: seed foods only then, so
+            // deleting every food later does not silently bring the starter list back.
+            if (profileDao.get() == null) {
+                if (foodDao.count() == 0) {
+                    foodDao.insertAll(SeedFoods.items)
+                }
+                profileDao.upsert(Profile())
             }
             if (goalsDao.get() == null) {
                 goalsDao.upsert(Goals())
-            }
-            if (profileDao.get() == null) {
-                profileDao.upsert(Profile())
             }
         }
     }

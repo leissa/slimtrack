@@ -41,9 +41,17 @@ object Energy {
         return target < profile.sex.calorieFloor
     }
 
-    fun weeksToTarget(currentKg: Double, targetKg: Double, tier: DietTier): Double {
-        val delta = currentKg - targetKg
-        return if (delta <= 0.0) 0.0 else delta / tier.kgPerWeek
+    /**
+     * Weeks to the target weight at the *effective* deficit, i.e. after the safety
+     * floor has capped intake, so the estimate matches what the user will actually
+     * lose. Returns null when the current intake allows no deficit at all.
+     */
+    fun weeksToTarget(profile: Profile, currentKg: Double): Double? {
+        val delta = currentKg - profile.targetWeightKg
+        if (delta <= 0.0) return 0.0
+        val deficit = maintenance(profile, currentKg) - suggestedCalories(profile, currentKg)
+        if (deficit <= 0.0) return null
+        return delta * 7700.0 / (deficit * 7.0)
     }
 
     /** Calories burned for [minutes] of an activity at [weightKg]. */

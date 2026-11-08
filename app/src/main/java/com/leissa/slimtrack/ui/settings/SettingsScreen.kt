@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -48,7 +49,6 @@ import com.leissa.slimtrack.util.kcalText
 import com.leissa.slimtrack.util.parseWeightToKg
 import com.leissa.slimtrack.util.toDecimalOrNull
 import com.leissa.slimtrack.util.weightUnitLabel
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -69,26 +69,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
     val activity = ActivityLevel.valueOf(activityName)
     val tier = DietTier.valueOf(tierName)
     val profileWeightUnit = weightUnitLabel(unit)
+    // Observable, so a locale change while the screen is open updates the formatting.
+    val locale = LocalConfiguration.current.locales[0]
 
     val initialHeight = profile.heightCm
-    var heightCmText by rememberSaveable(profile, unitTick) {
+    var heightCmText by rememberSaveable(profile, unitTick, locale) {
         mutableStateOf(
-            if (unit == UnitSystem.METRIC) "%.0f".format(Locale.getDefault(), initialHeight)
-            else "%.0f".format(Locale.getDefault(), (cmToInches(initialHeight).roundToInt() / 12).toDouble())
+            if (unit == UnitSystem.METRIC) "%.0f".format(locale, initialHeight)
+            else "%.0f".format(locale, (cmToInches(initialHeight).roundToInt() / 12).toDouble())
         )
     }
-    var heightInText by rememberSaveable(profile, unitTick) {
+    var heightInText by rememberSaveable(profile, unitTick, locale) {
         mutableStateOf(
-            "%.0f".format(Locale.getDefault(), cmToInches(initialHeight).roundToInt() % 12 / 1.0)
+            "%.0f".format(locale, cmToInches(initialHeight).roundToInt() % 12 / 1.0)
         )
     }
     var targetWeightText by rememberSaveable(profile, unitTick) {
         mutableStateOf(displayWeight(profile.targetWeightKg, unit))
     }
-    var targetBmiText by rememberSaveable(profile, unitTick) {
+    var targetBmiText by rememberSaveable(profile, unitTick, locale) {
         mutableStateOf(
             String.format(
-                Locale.getDefault(),
+                locale,
                 "%.1f",
                 Energy.bmi(profile.targetWeightKg, heightRoundedForUnit(profile.heightCm, unit)),
             )
@@ -109,7 +111,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
         if (feet <= 0.0) null else inchesToCm(feet * 12.0 + inches)
     }
 
-    fun bmiString(value: Double): String = String.format(Locale.getDefault(), "%.1f", value)
+    fun bmiString(value: Double): String = String.format(locale, "%.1f", value)
 
     fun syncBmiFromWeight(height: Double) {
         parseWeightToKg(targetWeightText, unit)?.let { kg ->
@@ -142,11 +144,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
     val maintenance = Energy.maintenance(workingProfile, weightForEnergy)
     val suggestedCalories = Energy.suggestedCalories(workingProfile, weightForEnergy)
     val floorApplied = Energy.isFloorApplied(workingProfile, weightForEnergy)
-    val weeksToTarget = Energy.weeksToTarget(
-        weightForEnergy,
-        workingProfile.targetWeightKg,
-        tier,
-    )
+    val weeksToTarget = state.latestWeightKg?.let {
+        Energy.weeksToTarget(workingProfile, it)
+    }
     val targetBmiValue = Energy.bmi(workingProfile.targetWeightKg, workingProfile.heightCm)
 
     val canSave = heightCm != null && heightCm > 0 &&
@@ -346,7 +346,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
         Spacer(Modifier.height(4.dp))
         Text(
             text = "Target BMI %.1f is in the ${Energy.bmiCategory(targetBmiValue).lowercase()} range."
-                .format(Locale.getDefault(), targetBmiValue),
+                .format(locale, targetBmiValue),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -364,8 +364,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
                 )
                 InfoRow(
                     "Time to target",
-                    if (weeksToTarget <= 0.0) "Reached"
-                    else "%.0f weeks".format(Locale.getDefault(), weeksToTarget),
+                    when {
+                        state.latestWeightKg == null -> "—"
+                        weeksToTarget == null -> "—"
+                        weeksToTarget <= 0.0 -> "Reached"
+                        else -> "%.0f weeks".format(locale, weeksToTarget)
+                    },
                 )
                 if (state.latestWeightKg == null) {
                     Spacer(Modifier.height(6.dp))

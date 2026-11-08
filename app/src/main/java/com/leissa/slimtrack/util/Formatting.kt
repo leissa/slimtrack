@@ -6,19 +6,15 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val shortDayFormatter: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-
-private val dayFormatter: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault())
-
+// Built per call so a locale change while the app runs is picked up.
 fun LocalDate.dayLabel(): String = when (this) {
     LocalDate.now() -> "Today"
     LocalDate.now().minusDays(1) -> "Yesterday"
-    else -> format(dayFormatter)
+    else -> format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
 }
 
-fun LocalDate.shortDayLabel(): String = format(shortDayFormatter)
+fun LocalDate.shortDayLabel(): String =
+    format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()))
 
 /** "1,240" in English, "1.240" in German. */
 fun Double.kcalText(): String = String.format(Locale.getDefault(), "%,.0f", this)

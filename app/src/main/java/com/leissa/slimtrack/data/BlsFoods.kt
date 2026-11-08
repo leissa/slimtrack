@@ -46,7 +46,7 @@ class BlsFoods(private val assets: AssetManager) {
                 if (parts.size != 5) return@mapNotNull null
                 val name = parts[0].trim()
                 val calories = parts[1].toDoubleOrNull()?.roundToInt() ?: return@mapNotNull null
-                if (name.isEmpty() || calories <= 0) return@mapNotNull null
+                if (name.isEmpty() || calories < 0) return@mapNotNull null
 
                 val food = Food(
                     name = name,

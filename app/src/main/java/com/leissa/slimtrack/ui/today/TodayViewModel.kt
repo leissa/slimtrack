@@ -18,6 +18,7 @@ import com.leissa.slimtrack.data.FoodSource
 import com.leissa.slimtrack.data.Goals
 import com.leissa.slimtrack.data.Meal
 import com.leissa.slimtrack.data.Profile
+import com.leissa.slimtrack.util.trackDayChanges
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -32,6 +33,7 @@ import java.time.LocalDate
 
 data class TodayUiState(
     val date: LocalDate = LocalDate.now(),
+    val today: LocalDate = LocalDate.now(),
     val entries: List<EntryWithFood> = emptyList(),
     val goals: Goals = Goals(),
     val foods: List<Food> = emptyList(),
@@ -51,7 +53,7 @@ data class TodayUiState(
 
     val remaining: Double = effectiveGoal - calories
 
-    val isToday: Boolean get() = date == LocalDate.now()
+    val isToday: Boolean get() = date == today
 
     fun entriesFor(meal: Meal): List<EntryWithFood> = entries.filter { it.entry.meal == meal }
 
@@ -61,7 +63,25 @@ data class TodayUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModel(private val container: AppContainer) : ViewModel() {
 
+    private val today = MutableStateFlow(LocalDate.now())
     private val selectedDate = MutableStateFlow(LocalDate.now())
+
+    init {
+        viewModelScope.trackDayChanges { refreshToday() }
+    }
+
+    /**
+     * Called on resume and shortly after midnight. If the user was looking at today,
+     * follow the new day; a date the user navigated to deliberately is left alone.
+     */
+    fun refreshToday() {
+        val now = LocalDate.now()
+        val previous = today.value
+        if (now == previous) return
+        val wasOnToday = selectedDate.value == previous
+        today.value = now
+        if (wasOnToday) selectedDate.value = now
+    }
 
     private val dayEntries = selectedDate.flatMapLatest { date ->
         container.diaryDao.observeForDay(date.toEpochDay())
@@ -87,9 +107,11 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         dayData,
         settings,
         container.foodDao.observeAll(),
-    ) { (date, entries, exercises), (goals, profile, latestWeight), foods ->
+        today,
+    ) { (date, entries, exercises), (goals, profile, latestWeight), foods, currentDay ->
         TodayUiState(
             date = date,
+            today = currentDay,
             entries = entries,
             goals = goals,
             foods = foods,
@@ -109,13 +131,14 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun nextDay() {
         val next = selectedDate.value.plusDays(1)
-        if (!next.isAfter(LocalDate.now())) {
+        if (!next.isAfter(today.value)) {
             selectedDate.value = next
         }
     }
 
     fun goToToday() {
-        selectedDate.value = LocalDate.now()
+        refreshToday()
+        selectedDate.value = today.value
     }
 
     fun addEntry(foodId: Long, meal: Meal, quantity: Double) {

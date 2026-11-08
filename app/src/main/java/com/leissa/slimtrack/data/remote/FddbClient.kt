@@ -39,7 +39,7 @@ class FddbClient {
         val calories = quickstat(page, "Kalorien")
             ?: tableValue(page, "Kalorien", "kcal")
             ?: return@withContext null
-        if (calories <= 0.0) return@withContext null
+        if (calories < 0.0) return@withContext null
 
         Food(
             name = result.name.take(90),
@@ -94,14 +94,23 @@ class FddbClient {
         return parseNumber(match.groupValues[1])
     }
 
-    /** FDDB prints German numbers such as "6,3 g" and "2.257". */
+    /**
+     * FDDB prints German numbers such as "6,3 g" and "2.257" (thousands dot).
+     * A dot is only a thousands separator when the value also has a decimal comma,
+     * or when it is followed by three digits; otherwise it is treated as a decimal
+     * point so an English-formatted "0.5" is not read as 5.
+     */
     private fun parseNumber(raw: String): Double? {
-        val numeric = Regex("[0-9][0-9.,\\s]*").find(raw)?.value ?: return null
-        return numeric
-            .replace(" ", "")
-            .replace(".", "")
-            .replace(',', '.')
-            .toDoubleOrNull()
+        val numeric = NUMBER.find(raw)?.value?.replace(" ", "") ?: return null
+        if (numeric.isEmpty()) return null
+        val normalized = if (numeric.contains(',')) {
+            numeric.replace(".", "").replace(',', '.')
+        } else {
+            val dots = numeric.count { it == '.' }
+            val decimals = numeric.substringAfterLast('.').length
+            if (dots == 1 && decimals in 1..2) numeric else numeric.replace(".", "")
+        }
+        return normalized.toDoubleOrNull()
     }
 
     private fun unescape(text: String): String =
@@ -144,6 +153,7 @@ class FddbClient {
     private companion object {
         const val BASE = "https://fddb.info"
 
+        val NUMBER = Regex("[0-9][0-9.,\\s]*")
         val ROW = Regex("<div class='rl[ab]'[^>]*>(.*?)</div>", RegexOption.DOT_MATCHES_ALL)
         val LINK = Regex("<a\\s+href='([^']+)'[^>]*>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
         val BRAND = Regex(

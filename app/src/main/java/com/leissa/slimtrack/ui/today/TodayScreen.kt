@@ -15,8 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.leissa.slimtrack.data.EntryWithFood
 import com.leissa.slimtrack.data.ExerciseEntry
@@ -50,6 +52,7 @@ import com.leissa.slimtrack.util.quantityText
 @Composable
 fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshToday() }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     var sheetMeal by rememberSaveable { mutableStateOf(defaultMealForNow().name) }
     var exerciseSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -195,10 +198,10 @@ private fun DateHeader(
             }
         }
         IconButton(onClick = onPrevious) {
-            Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
         }
         IconButton(onClick = onNext, enabled = !state.isToday) {
-            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Next day")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day")
         }
     }
 }

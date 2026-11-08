@@ -47,5 +47,4 @@ data class Profile(
     val activityLevel: ActivityLevel = ActivityLevel.LIGHT,
     val dietTier: DietTier = DietTier.MEDIUM,
     val targetWeightKg: Double = 75.0,
-    val isConfigured: Boolean = false,
 )

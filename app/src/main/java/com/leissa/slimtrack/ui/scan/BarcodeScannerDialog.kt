@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(ExperimentalGetImage::class)
+
 package com.leissa.slimtrack.ui.scan
 
 import android.Manifest
@@ -5,6 +7,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -42,7 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -210,6 +213,9 @@ private fun CameraBarcodeScanner(
         val scanner = BarcodeScanning.getClient(options)
 
         providerFuture.addListener({
+            // The dialog may have been closed before the camera provider finished
+            // initialising; do not bind use cases after disposal.
+            if (handled.get()) return@addListener
             try {
                 val provider = providerFuture.get()
                 val preview = Preview.Builder().build().also {
@@ -254,7 +260,10 @@ private fun CameraBarcodeScanner(
             handled.set(true)
             scanner.close()
             executor.shutdown()
-            runCatching { providerFuture.get().unbindAll() }
+            // Never block the main thread waiting for camera initialisation.
+            if (providerFuture.isDone) {
+                runCatching { providerFuture.get().unbindAll() }
+            }
         }
     }
 

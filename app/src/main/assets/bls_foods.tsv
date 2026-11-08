@@ -362,10 +362,13 @@ Frischkäse aus Ziegenmilch, Natur, mind. 45 % Fett i. Tr.	230	17.94	16.42	2.02
 Schmelzkäsezubereitung 45 - 52 % Fett i. Tr.	284	11.80	23.70	5.30
 Frischkäsezubereitung mind. 60 % Fett i. Tr., mit Gemüse/Kräutern	234	5.57	21.46	3.89
 Eistee mit Zitronen-/Pfirsichgeschmack, gesüßt	25	0.00	0.00	6.20
+Trinkwasser	0	0.00	0.00	0.00
 Kaffee (Getränk)	1	0.12	0.00	0.00
 Kaffee (Getränk) aus Instantpulver	2	0.33	0.00	0.00
 Instantkaffeepulver	150	19.50	1.20	4.10
 Cappuccino Instantpulver, gesüßt	403	10.34	10.90	60.50
+Grüntee (Getränk)	0	0.10	0.00	0.00
+Schwarztee (Getränk)	0	0.00	0.00	0.00
 Malzgetränk, alkoholfrei	43	0.38	0.00	10.32
 Weizenbier kristallklar	40	0.50	0.00	2.43
 Hefeweizen/Weizenbier, naturtrüb	42	0.61	0.00	2.45
@@ -385,14 +388,21 @@ Butter mild gesäuert	747	1.19	82.20	0.57
 Fischleberöl/Lebertran	900	0.00	100.00	0.00
 Rinderfett/Rindertalg	897	0.42	99.50	0.00
 Tahin (Sesammus)	595	18.00	56.00	0.70
+Speisesalz/Siedesalz/Tafelsalz	0	0.00	0.00	0.00
+Nitritpökelsalz	0	0.00	0.00	0.00
+Nitritpökelsalz jodiert	0	0.00	0.00	0.00
 Apfelessig	18	0.20	0.00	0.15
 Senf mittelscharf	111	5.51	6.96	2.94
 Tomatenketchup	98	1.40	0.10	21.16
 Sojasauce/Sojasoße	66	6.30	0.88	5.47
 Feinkostsauce/Grillsauce, Mayonnaise-Basis	274	1.10	24.58	11.15
+Glutamat/Mononatriumglutamat/Natriumglutamat	0	0.00	0.00	0.00
 Basilikum getrocknet	211	23.00	4.07	1.71
 Pfeffer schwarz, getrocknet	304	10.92	2.77	46.07
+Kutterhilfsmittel (E 450)	0	0.00	0.00	0.00
 Backpulver	88	0.09	0.12	21.60
+Hirschhornsalz (Ammoniumhydrogencarbonat, E 503)	0	0.00	0.00	0.00
+Pottasche (99 % Kaliumcarbonat, E 501)	0	0.00	0.00	0.00
 Sahnestandmittel	369	0.07	0.04	92.06
 Backhefe getrocknet (Trockenbackhefe)	334	40.40	7.61	14.30
 Backhefe frisch (Frischbackhefe)	128	16.70	1.20	10.00
@@ -400,6 +410,7 @@ Apfelpektin getrocknet	186	1.50	0.00	32.00
 Gelatine/Speisegelatine	341	85.10	0.10	0.00
 Milchsäure 80 % (E 270)	240	0.00	0.00	0.00
 Citronensäure/Zitronensäure (E 330)	300	0.00	0.00	0.00
+Ascorbinsäure (E 300)	0	0.00	0.00	0.00
 Essigsäure 60 % (E 260)	180	0.00	0.00	0.00
 Fleisch Bouillon/Brühe/Suppe (Brühwürfel, Pulver)	207	7.24	6.48	27.76
 Gemüse Bouillon/Brühe/Suppe (Brühwürfel, Pulver)	195	5.82	5.80	27.91
@@ -416,6 +427,7 @@ Sorbit Pulver (E 420)	235	0.00	0.00	98.00
 Xylit Pulver (E 967)	238	0.00	0.00	99.00
 Mannit Pulver (E 421)	240	0.00	0.00	100.00
 Tafelsüße Tabletten (Süßstoffe: Cyclamat, Saccharin)	52	0.00	0.00	0.00
+Tafelsüße Flüssigsüße (Süßstoffe: Cyclamat, Saccharin)	0	0.00	0.00	0.00
 Schokoladeneis	232	3.62	10.48	29.25
 Walnusseis	240	3.40	12.80	26.74
 Lakritze	311	5.21	0.50	70.64
@@ -766,9 +778,20 @@ Schmelzkäse schnittfest, mind. 45 % Fett i. Tr.	299	15.70	23.60	5.10
 Limonade chininhaltig	41	0.00	0.00	9.88
 Zitronenlimonade	38	0.00	0.00	9.27
 Ginger Ale	37	0.00	0.00	8.87
+Natürliches Mineralwasser still	0	0.00	0.00	0.00
+Natürliches Mineralwasser mit Kohlensäure	0	0.00	0.00	0.00
+Natürliches Mineralwasser mit geringem Mineraliengehalt	0	0.00	0.00	0.00
+Quellwasser	0	0.00	0.00	0.00
+Türkischer Mokka (Getränk)	0	0.12	0.00	0.00
+Kaffee (Getränk) entkoffeiniert	0	0.12	0.00	0.00
 Espresso (Getränk)	2	0.40	0.00	0.00
+Kaffee (Getränk) koffeinreduziert	0	0.12	0.00	0.00
 Kaffee (Getränk) entkoffeiniert, aus Instantpulver	2	0.33	0.00	0.00
 Instantkaffeepulver entkoffeiniert	150	19.50	1.20	4.10
+Mate-Tee (Getränk)	0	0.10	0.00	0.00
+Kräutertee (Getränk)	0	0.00	0.00	0.00
+Roibusch-/Rooibos-/Rotbusch-Tee (Getränk)	0	0.00	0.00	0.00
+Schwarztee (Getränk) entkoffeiniert	0	0.00	0.00	0.00
 Hefeweizen/Weizenbier, 0,0 % vol	26	0.48	0.00	5.90
 Hefeweizen/Weizenbier, alkoholfrei	22	0.48	0.00	4.70
 Lagerbier hell	36	0.40	0.00	2.28
@@ -820,6 +843,11 @@ Schweinefett/Schweineschmalz	900	0.00	100.00	0.00
 Hühnerfett	900	0.00	100.00	0.00
 Rind Fettgewebe, subkutan roh	852	1.50	94.00	0.00
 Hammelfett/Hammeltalg	747	3.85	81.30	0.00
+Speisesalz jodiert/Jodsalz, mit Fluorid	0	0.00	0.00	0.00
+Speisesalz jodiert/Jodsalz, mit Fluorid und Folsäure	0	0.00	0.00	0.00
+Steinsalz	0	0.00	0.00	0.00
+Speisesalz jodiert/Jodsalz	0	0.00	0.00	0.00
+Meersalz	0	0.00	0.00	0.00
 Weinessig	25	0.00	0.00	0.00
 Senf extra scharf	111	5.51	6.96	2.94
 Senf scharf	111	5.51	6.96	2.94
@@ -1083,10 +1111,13 @@ Schmelzkäsezubereitung mind. 30 % Fett i. Tr.	219	15.00	14.00	7.40
 Frischkäsezubereitung < 10 % Fett i. Tr., mit Gemüse/Kräutern	84	16.46	0.20	3.40
 Orangenlimonade	33	0.00	0.00	8.35
 Colagetränk koffeinhaltig	41	0.00	0.00	10.30
+Natürliches Mineralwasser	0	0.00	0.00	0.00
 Brause	37	0.00	0.00	9.00
 Limonade mit Süßungsmitteln	1	0.00	0.00	0.10
 Brause mit Zucker und Süßungsmitteln	15	0.00	0.00	3.50
 Limonade mit Gewürzauszügen und Süßungsmitteln	2	0.00	0.00	0.00
+Früchtetee (Getränk)	0	0.00	0.00	0.00
+Pfefferminztee (Getränk)	0	0.00	0.00	0.00
 Pilsner Bier, 0,0 % vol	19	0.41	0.00	4.40
 Export dunkel	27	0.40	0.00	0.17
 Rotling trocken	64	0.10	0.00	0.70
@@ -1223,6 +1254,7 @@ Frischkäsezubereitung mind. 40 % Fett i. Tr., mit Gemüse/Kräutern	146	9.70	10
 Ricotta, Molkeneiweißkäse, mind. 45 % Fett i. Tr.	159	8.58	12.30	3.43
 Schmelzkäse schnittfest, mind. 20 % Fett i. Tr.	217	24.50	11.50	3.10
 Kochkäse mind. 10 % Fett i. Tr.	104	14.70	3.00	3.90
+Colagetränk koffeinhaltig, mit Süßungsmitteln	0	0.00	0.00	0.00
 Colagetränk koffeinfrei	41	0.00	0.00	10.30
 Kaffeelikör/Kakaolikör, klar	335	0.10	0.40	46.00
 Bitterlikör/Kräuterlikör/Gewürzlikör	282	0.10	0.00	28.78
@@ -1264,6 +1296,7 @@ Kalb Zunge, roh	172	16.90	11.60	0.00
 Schnittkäse mind. 20 % Fett i. Tr.	242	33.80	11.40	0.00
 Schmelzkäsezubereitung mind. 20 % Fett i. Tr.	191	17.00	10.00	7.60
 Frischkäsezubereitung mind. 30 % Fett i. Tr., mit Gemüse/Kräutern	140	11.00	9.00	3.00
+Colagetränk koffeinfrei, mit Süßungsmitteln	0	0.00	0.00	0.00
 Mandellikör	335	0.10	0.40	46.00
 Schwertfisch roh	106	19.40	3.11	0.00
 Rind Hochrippe, roh	155	20.55	8.05	0.00
@@ -5011,6 +5044,7 @@ Frischkornbrei ungesüßt, mit Fruchtmischung	145	4.82	5.00	17.80
 Aprikosenkompott mit Süßstoff	38	0.70	0.12	7.28
 Erbsen-Mais-Gemüse gedünstet	90	3.70	3.56	8.80
 Süßkartoffelpüree (ohne Salz, geeignet für Beikost)	122	1.08	4.79	17.60
+Nearwater/Aqua Plus Getränk, aromatisiert, ungesüßt	0	0.01	0.00	0.00
 Lachs tiefgefroren, gedünstet	163	17.36	10.42	0.00
 Vollkorneierteigwaren gekocht	125	5.17	0.99	21.56
 Kasseler, Rohpökelware, geräuchert, paniert	124	18.29	2.69	6.28

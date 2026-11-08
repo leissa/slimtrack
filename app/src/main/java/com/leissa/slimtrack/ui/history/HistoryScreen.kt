@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.leissa.slimtrack.data.Goals
 import com.leissa.slimtrack.util.dayLabel
@@ -36,6 +38,7 @@ import com.leissa.slimtrack.util.kcalText
 fun HistoryScreen(viewModel: HistoryViewModel, modifier: Modifier = Modifier) {
     val days by viewModel.days.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshToday() }
 
     val loggedDays = days.filter { it.calories > 0 }
     val average = if (loggedDays.isEmpty()) 0.0 else loggedDays.sumOf { it.calories } / loggedDays.size

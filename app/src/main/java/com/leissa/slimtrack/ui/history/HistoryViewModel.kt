@@ -7,9 +7,13 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.leissa.slimtrack.data.AppContainer
 import com.leissa.slimtrack.data.Goals
+import com.leissa.slimtrack.util.trackDayChanges
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -27,36 +31,48 @@ data class HistoryDay(
 
 private const val DAY_COUNT = 14
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModel(container: AppContainer) : ViewModel() {
+
+    private val today = MutableStateFlow(LocalDate.now())
+
+    init {
+        viewModelScope.trackDayChanges { refreshToday() }
+    }
+
+    /** Keeps the window aligned with the current day; called on resume and after midnight. */
+    fun refreshToday() {
+        today.value = LocalDate.now()
+    }
 
     val goals: StateFlow<Goals> = container.goalsDao.observe()
         .map { it ?: Goals() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Goals())
 
-    val days: StateFlow<List<HistoryDay>> = run {
-        val today = LocalDate.now()
-        val from = today.minusDays((DAY_COUNT - 1).toLong())
-        combine(
-            container.diaryDao.observeDailyTotals(from.toEpochDay(), today.toEpochDay()),
-            container.exerciseDao.observeDailyBurn(from.toEpochDay(), today.toEpochDay()),
-        ) { totals, burns ->
-            val byDay = totals.associateBy { it.epochDay }
-            val burnByDay = burns.associateBy { it.epochDay }
-            (0 until DAY_COUNT).map { offset ->
-                val date = from.plusDays(offset.toLong())
-                val day = byDay[date.toEpochDay()]
-                HistoryDay(
-                    date = date,
-                    calories = day?.calories ?: 0.0,
-                    protein = day?.proteinGrams ?: 0.0,
-                    carbs = day?.carbsGrams ?: 0.0,
-                    fat = day?.fatGrams ?: 0.0,
-                    burned = burnByDay[date.toEpochDay()]?.calories ?: 0.0,
-                )
+    val days: StateFlow<List<HistoryDay>> = today
+        .flatMapLatest { end ->
+            val from = end.minusDays((DAY_COUNT - 1).toLong())
+            combine(
+                container.diaryDao.observeDailyTotals(from.toEpochDay(), end.toEpochDay()),
+                container.exerciseDao.observeDailyBurn(from.toEpochDay(), end.toEpochDay()),
+            ) { totals, burns ->
+                val byDay = totals.associateBy { it.epochDay }
+                val burnByDay = burns.associateBy { it.epochDay }
+                (0 until DAY_COUNT).map { offset ->
+                    val date = from.plusDays(offset.toLong())
+                    val day = byDay[date.toEpochDay()]
+                    HistoryDay(
+                        date = date,
+                        calories = day?.calories ?: 0.0,
+                        protein = day?.proteinGrams ?: 0.0,
+                        carbs = day?.carbsGrams ?: 0.0,
+                        fat = day?.fatGrams ?: 0.0,
+                        burned = burnByDay[date.toEpochDay()]?.calories ?: 0.0,
+                    )
+                }
             }
         }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {

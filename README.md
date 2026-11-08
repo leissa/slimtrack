@@ -4,7 +4,8 @@ A small diet and weight diary for Android. Log meals per meal, track calories an
 against daily goals, record weight and exercise, and see trends over time.
 
 Everything is stored in a local Room database. Only food searches go online, and they send
-nothing but the search term.
+nothing but the search term. Android Auto Backup and device-to-device transfer are disabled,
+so the diary never leaves the device (see `backup_rules.xml` / `data_extraction_rules.xml`).
 
 ## Features
 
@@ -13,7 +14,7 @@ nothing but the search term.
   7-day averages, in metric or imperial units
 - Diet tiers (fast / medium / slow) and a goal recommendation based on BMR and activity
 - Food search across three sources:
-  - **BLS 4.0** — 7,100 German foods, bundled offline
+  - **BLS 4.0** — 7,140 German foods, bundled offline
   - **FDDB** — German branded and user-entered products
   - **Open Food Facts** — international branded products and barcode lookup
 - Barcode scanning with CameraX and ML Kit
@@ -79,7 +80,8 @@ The first launch seeds a starter food list (`data/SeedFoods.kt`).
 ## Food data
 
 `app/src/main/assets/bls_foods.tsv` contains name, kcal, protein, fat and carbs per 100 g
-for 7,106 generic foods from the **Bundeslebensmittelschlüssel 4.0**. It is generated with:
+for 7,140 generic foods from the **Bundeslebensmittelschlüssel 4.0**. Zero-calorie foods
+such as water and unsweetened tea are included. It is generated with:
 
 ```bash
 python3 tools/extract_bls.py \

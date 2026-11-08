@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WeightEntry::class,
         ExerciseEntry::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -58,13 +58,36 @@ abstract class SlimTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Drops the unused `isConfigured` column. SQLite cannot drop a column before
+         * API 34, so the table is rebuilt and existing profile data is copied over.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `profile_new` (`id` INTEGER NOT NULL, " +
+                        "`unitSystem` TEXT NOT NULL, `sex` TEXT NOT NULL, `ageYears` INTEGER NOT NULL, " +
+                        "`heightCm` REAL NOT NULL, `activityLevel` TEXT NOT NULL, `dietTier` TEXT NOT NULL, " +
+                        "`targetWeightKg` REAL NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "INSERT INTO `profile_new` (`id`, `unitSystem`, `sex`, `ageYears`, `heightCm`, " +
+                        "`activityLevel`, `dietTier`, `targetWeightKg`) " +
+                        "SELECT `id`, `unitSystem`, `sex`, `ageYears`, `heightCm`, " +
+                        "`activityLevel`, `dietTier`, `targetWeightKg` FROM `profile`"
+                )
+                db.execSQL("DROP TABLE `profile`")
+                db.execSQL("ALTER TABLE `profile_new` RENAME TO `profile`")
+            }
+        }
+
         fun build(context: Context): SlimTrackDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 SlimTrackDatabase::class.java,
                 "slimtrack.db",
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }

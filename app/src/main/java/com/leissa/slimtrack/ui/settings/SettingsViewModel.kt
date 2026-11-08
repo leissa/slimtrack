@@ -40,7 +40,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun save(profile: Profile, goals: Goals) {
         viewModelScope.launch {
-            container.profileDao.upsert(profile.copy(isConfigured = true))
+            container.profileDao.upsert(profile)
             container.goalsDao.upsert(goals)
         }
     }

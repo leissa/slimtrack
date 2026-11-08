@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +64,8 @@ import com.leissa.slimtrack.util.gramsText
 import com.leissa.slimtrack.util.kcalText
 import com.leissa.slimtrack.util.quantityText
 import com.leissa.slimtrack.util.toDecimalOrNull
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private enum class AddMode(val label: String) {
@@ -96,17 +102,26 @@ fun AddEntrySheet(
     var query by rememberSaveable { mutableStateOf("") }
     var selectedFoodId by rememberSaveable { mutableStateOf<Long?>(null) }
     var mealName by rememberSaveable { mutableStateOf(initialMeal.name) }
-    var quantity by rememberSaveable { mutableStateOf(1.0) }
+    var quantity by rememberSaveable { mutableDoubleStateOf(1.0) }
     var customMode by rememberSaveable { mutableStateOf(false) }
 
-    var onlineResults by remember { mutableStateOf<List<FoodSearchResult>>(emptyList()) }
-    var onlineLoading by remember { mutableStateOf(false) }
-    var onlineNote by remember { mutableStateOf<String?>(null) }
-    var onlineError by remember { mutableStateOf<String?>(null) }
+    var databaseResults by remember { mutableStateOf<List<FoodSearchResult>>(emptyList()) }
+    var databaseLoading by remember { mutableStateOf(false) }
+    var databaseNote by remember { mutableStateOf<String?>(null) }
+    var databaseError by remember { mutableStateOf<String?>(null) }
     var resolving by remember { mutableStateOf<String?>(null) }
+    var scanLoading by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
     var pendingProduct by remember { mutableStateOf<FoodSearchResult?>(null) }
     var scanning by remember { mutableStateOf(false) }
     var manualBarcode by rememberSaveable { mutableStateOf("") }
+
+    // Requests are tagged so an answer that arrives after the user changed mode,
+    // typed another query or tapped another product is ignored instead of displayed.
+    var searchRequest by remember { mutableIntStateOf(0) }
+    var resolveRequest by remember { mutableIntStateOf(0) }
+    var lookupRequest by remember { mutableIntStateOf(0) }
+    var resolveJob by remember { mutableStateOf<Job?>(null) }
 
     val mode = AddMode.valueOf(modeName)
     val meal = Meal.valueOf(mealName)
@@ -120,26 +135,48 @@ fun AddEntrySheet(
         }
     }
 
+    /** Cancels in-flight work and clears both modes' messages when the user switches tabs. */
+    fun cancelRequests() {
+        searchRequest++
+        resolveRequest++
+        lookupRequest++
+        resolveJob?.cancel()
+        resolveJob = null
+        databaseLoading = false
+        databaseError = null
+        databaseNote = null
+        databaseResults = emptyList()
+        resolving = null
+        scanLoading = false
+        scanError = null
+    }
+
     fun searchDatabases() {
         val term = query.trim()
         if (term.isEmpty()) return
+        val request = ++searchRequest
+        databaseLoading = true
+        databaseError = null
+        databaseNote = null
         scope.launch {
-            onlineLoading = true
-            onlineError = null
-            onlineNote = null
             try {
                 val outcome = onSearchFoods(term)
-                onlineResults = outcome.results
+                if (request != searchRequest) return@launch
+                databaseResults = outcome.results
                 if (outcome.onlineUnavailable) {
-                    onlineNote = "Online databases unavailable — showing German foods (BLS) only."
+                    databaseNote = "Online databases unavailable — showing German foods (BLS) only."
                 }
                 if (outcome.results.isEmpty()) {
-                    onlineError = "No foods found for \"$term\"."
+                    databaseError = "No foods found for \"$term\"."
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                onlineError = "Search failed. Check your connection."
+                if (request == searchRequest) {
+                    databaseError = "Search failed. Check your connection."
+                }
             } finally {
-                onlineLoading = false
+                if (request == searchRequest) databaseLoading = false
             }
         }
     }
@@ -150,20 +187,28 @@ fun AddEntrySheet(
             pendingProduct = result
             return
         }
-        scope.launch {
-            resolving = result.reference ?: result.name
-            onlineError = null
+        // Only the last tapped product may open the editor.
+        resolveJob?.cancel()
+        val request = ++resolveRequest
+        resolving = result.reference ?: result.name
+        databaseError = null
+        resolveJob = scope.launch {
             try {
                 val food = onResolveSearchResult(result)
+                if (request != resolveRequest) return@launch
                 if (food == null) {
-                    onlineError = "Couldn't load \"${result.name}\" from FDDB."
+                    databaseError = "Couldn't load \"${result.name}\" from FDDB."
                 } else {
                     pendingProduct = result.copy(food = food)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                onlineError = "Couldn't load \"${result.name}\". Check your connection."
+                if (request == resolveRequest) {
+                    databaseError = "Couldn't load \"${result.name}\". Check your connection."
+                }
             } finally {
-                resolving = null
+                if (request == resolveRequest) resolving = null
             }
         }
     }
@@ -171,13 +216,15 @@ fun AddEntrySheet(
     fun lookupBarcode(code: String) {
         val clean = code.trim()
         if (clean.isEmpty()) return
+        val request = ++lookupRequest
+        scanLoading = true
+        scanError = null
         scope.launch {
-            onlineLoading = true
-            onlineError = null
             try {
                 val food = onLookupBarcode(clean)
+                if (request != lookupRequest) return@launch
                 if (food == null) {
-                    onlineError = "No product for barcode $clean."
+                    scanError = "No product for barcode $clean."
                 } else {
                     pendingProduct = FoodSearchResult(
                         name = food.name,
@@ -185,10 +232,14 @@ fun AddEntrySheet(
                         food = food,
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                onlineError = "Lookup failed. Check your connection and the barcode."
+                if (request == lookupRequest) {
+                    scanError = "Lookup failed. Check your connection and the barcode."
+                }
             } finally {
-                onlineLoading = false
+                if (request == lookupRequest) scanLoading = false
             }
         }
     }
@@ -241,7 +292,8 @@ fun AddEntrySheet(
                     onQuantityChange = { quantity = it },
                     onBack = {
                         pendingProduct = null
-                        onlineError = null
+                        databaseError = null
+                        scanError = null
                     },
                     onAdd = { onAddProduct(pendingFood, meal, quantity) },
                 )
@@ -264,9 +316,7 @@ fun AddEntrySheet(
                                 selected = mode == option,
                                 onClick = {
                                     modeName = option.name
-                                    onlineError = null
-                                    onlineNote = null
-                                    onlineResults = emptyList()
+                                    cancelRequests()
                                     query = ""
                                 },
                                 label = { Text(option.label) },
@@ -287,17 +337,17 @@ fun AddEntrySheet(
                             query = query,
                             onQueryChange = { query = it },
                             onSearch = ::searchDatabases,
-                            loading = onlineLoading,
-                            note = onlineNote,
-                            error = onlineError,
-                            results = onlineResults,
+                            loading = databaseLoading,
+                            note = databaseNote,
+                            error = databaseError,
+                            results = databaseResults,
                             resolving = resolving,
                             onSelect = ::selectSearchResult,
                         )
 
                         AddMode.SCAN -> ScanPicker(
-                            loading = onlineLoading,
-                            error = onlineError,
+                            loading = scanLoading,
+                            error = scanError,
                             manualBarcode = manualBarcode,
                             onManualBarcodeChange = { manualBarcode = it },
                             onScan = { scanning = true },
@@ -376,7 +426,10 @@ private fun DatabaseFoodPicker(
         placeholder = { Text("Search BLS, FDDB or Open Food Facts") },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { if (query.isNotBlank() && !loading) onSearch() },
+        ),
         modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(8.dp))
@@ -552,28 +605,6 @@ private fun ScanPicker(
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier.padding(vertical = 8.dp),
         )
-    }
-}
-
-@Composable
-private fun FoodRow(food: Food, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(food.name, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "${food.servingLabel} · P ${food.proteinGrams.gramsText()} · " +
-                    "C ${food.carbsGrams.gramsText()} · F ${food.fatGrams.gramsText()}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text("${food.calories} kcal", style = MaterialTheme.typography.labelLarge)
     }
 }
 
