@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,8 +47,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,7 +59,6 @@ import com.leissa.slimtrack.data.Meal
 import com.leissa.slimtrack.ui.scan.BarcodeScannerDialog
 import com.leissa.slimtrack.util.gramsText
 import com.leissa.slimtrack.util.kcalText
-import com.leissa.slimtrack.util.quantityText
 import com.leissa.slimtrack.util.toDecimalOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -631,7 +627,11 @@ private fun SelectedFoodEditor(
         Spacer(Modifier.height(8.dp))
         MealChips(selected = meal, onSelect = onMealChange)
         Spacer(Modifier.height(16.dp))
-        ServingsStepper(quantity = quantity, onQuantityChange = onQuantityChange)
+        ServingInput(
+            servingLabel = food.servingLabel,
+            quantity = quantity,
+            onQuantityChange = onQuantityChange,
+        )
         Spacer(Modifier.height(12.dp))
         Text(
             text = "${(food.calories * quantity).kcalText()} kcal · " +
@@ -710,7 +710,11 @@ private fun CustomFoodForm(
         }
         Text("Meal", style = MaterialTheme.typography.labelLarge)
         MealChips(selected = meal, onSelect = onMealChange)
-        ServingsStepper(quantity = quantity, onQuantityChange = onQuantityChange)
+        ServingInput(
+            servingLabel = servingLabel,
+            quantity = quantity,
+            onQuantityChange = onQuantityChange,
+        )
         Spacer(Modifier.height(4.dp))
         Button(
             onClick = {
@@ -758,34 +762,6 @@ private fun MealChips(selected: Meal, onSelect: (Meal) -> Unit) {
                 onClick = { onSelect(meal) },
                 label = { Text(meal.label) },
             )
-        }
-    }
-}
-
-@Composable
-private fun ServingsStepper(quantity: Double, onQuantityChange: (Double) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "Servings",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.weight(1f),
-        )
-        FilledTonalIconButton(
-            onClick = { onQuantityChange((quantity - 0.5).coerceAtLeast(0.5)) },
-            modifier = Modifier.semantics { contentDescription = "Fewer servings" },
-        ) {
-            Text("−", style = MaterialTheme.typography.titleLarge)
-        }
-        Text(
-            text = quantity.quantityText(),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        FilledTonalIconButton(
-            onClick = { onQuantityChange((quantity + 0.5).coerceAtMost(20.0)) },
-            modifier = Modifier.semantics { contentDescription = "More servings" },
-        ) {
-            Text("+", style = MaterialTheme.typography.titleLarge)
         }
     }
 }

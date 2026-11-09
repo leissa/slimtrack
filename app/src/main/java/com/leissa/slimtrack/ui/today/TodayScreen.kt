@@ -1,5 +1,6 @@
 package com.leissa.slimtrack.ui.today
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,6 +50,7 @@ import com.leissa.slimtrack.util.defaultMealForNow
 import com.leissa.slimtrack.util.gramsText
 import com.leissa.slimtrack.util.kcalText
 import com.leissa.slimtrack.util.quantityText
+import com.leissa.slimtrack.util.servingAmountText
 
 @Composable
 fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
@@ -56,6 +59,8 @@ fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     var sheetMeal by rememberSaveable { mutableStateOf(defaultMealForNow().name) }
     var exerciseSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var editingEntryId by rememberSaveable { mutableLongStateOf(-1L) }
+    val editingEntry = state.entries.firstOrNull { it.entry.id == editingEntryId }
 
     Scaffold(
         modifier = modifier,
@@ -107,7 +112,11 @@ fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
                     }
                 } else {
                     items(mealEntries, key = { "entry-${it.entry.id}" }) { entry ->
-                        EntryRow(entry = entry, onDelete = { viewModel.deleteEntry(entry.entry) })
+                        EntryRow(
+                            entry = entry,
+                            onEdit = { editingEntryId = entry.entry.id },
+                            onDelete = { viewModel.deleteEntry(entry.entry) },
+                        )
                     }
                 }
             }
@@ -166,6 +175,17 @@ fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
             onAdd = { type, minutes ->
                 viewModel.addExercise(type, minutes)
                 exerciseSheetOpen = false
+            },
+        )
+    }
+
+    if (editingEntry != null) {
+        EditEntrySheet(
+            entry = editingEntry,
+            onDismiss = { editingEntryId = -1L },
+            onSave = { quantity ->
+                viewModel.updateEntryQuantity(editingEntry.entry.id, quantity)
+                editingEntryId = -1L
             },
         )
     }
@@ -293,10 +313,13 @@ private fun MealHeader(meal: Meal, calories: Double, onAdd: () -> Unit) {
 }
 
 @Composable
-private fun EntryRow(entry: EntryWithFood, onDelete: () -> Unit) {
+private fun EntryRow(entry: EntryWithFood, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val amount = servingAmountText(entry.food.servingLabel, entry.entry.quantity)
+        ?: "${entry.entry.quantity.quantityText()} × ${entry.food.servingLabel}"
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onEdit)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -308,7 +331,7 @@ private fun EntryRow(entry: EntryWithFood, onDelete: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${entry.entry.quantity.quantityText()} × ${entry.food.servingLabel} · " +
+                text = "$amount · " +
                     "P ${entry.protein.gramsText()} · C ${entry.carbs.gramsText()} · F ${entry.fat.gramsText()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

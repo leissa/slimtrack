@@ -204,6 +204,11 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    fun updateEntryQuantity(entryId: Long, quantity: Double) {
+        if (quantity <= 0.0) return
+        viewModelScope.launch { container.diaryDao.updateQuantity(entryId, quantity) }
+    }
+
     fun deleteEntry(entry: DiaryEntry) {
         viewModelScope.launch { container.diaryDao.delete(entry) }
     }

@@ -21,9 +21,18 @@ fun Double.kcalText(): String = String.format(Locale.getDefault(), "%,.0f", this
 
 fun Double.gramsText(): String = String.format(Locale.getDefault(), "%.0f g", this)
 
+/**
+ * Prints servings and amounts without unnecessary decimals. Two decimals are
+ * kept so small portions stay possible, e.g. 0.05 servings of oil.
+ */
 fun Double.quantityText(): String =
-    if (this % 1.0 == 0.0) toLong().toString()
-    else String.format(Locale.getDefault(), "%.1f", this)
+    if (this % 1.0 == 0.0) {
+        toLong().toString()
+    } else {
+        String.format(Locale.getDefault(), "%.2f", this)
+            .trimEnd('0')
+            .trimEnd('.', ',')
+    }
 
 /** Accepts both "12.5" and "12,5". */
 fun String.toDecimalOrNull(): Double? = replace(',', '.').trim().toDoubleOrNull()

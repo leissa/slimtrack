@@ -28,6 +28,8 @@ Backup and device-to-device transfer are disabled, so the diary never leaves the
 ## Features
 
 - Daily diary with four meals, calories and macros, exercise that raises the day's budget
+- Tap a logged food to correct its servings; gram/millilitre foods are entered as an
+  amount (e.g. 5 ml of oil) rather than fractions of a large serving
 - Weight entries with BMI, target weight/BMI and a chart showing every point plus 3-day and
   7-day averages, in metric or imperial units
 - Diet tiers (fast / medium / slow) and a goal recommendation based on BMR and activity
@@ -160,7 +162,6 @@ Bundeslebensmittelschlüssel data keeps its own CC BY 4.0 license and attributio
 
 ## Ideas for later
 
-- Edit the servings of an existing entry
 - Copy a whole day's meals
 - CSV export
 - Search synonyms (e.g. "yogurt" → "Joghurt" in the BLS table)

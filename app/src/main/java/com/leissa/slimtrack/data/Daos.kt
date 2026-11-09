@@ -39,6 +39,9 @@ interface DiaryDao {
     @Insert
     suspend fun insert(entry: DiaryEntry)
 
+    @Query("UPDATE entries SET quantity = :quantity WHERE id = :id")
+    suspend fun updateQuantity(id: Long, quantity: Double)
+
     @Delete
     suspend fun delete(entry: DiaryEntry)
 
