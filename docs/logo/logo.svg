@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="SlimTrack">
+  <defs>
+    <linearGradient id="bg" x1="0.08" y1="0" x2="0.92" y2="1">
+      <stop offset="0" stop-color="#2E7D32"/>
+      <stop offset="1" stop-color="#00695C"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="196" x2="0" y2="344" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#sheen)"/>
+
+  <path d="M140,196 L214,258 L290,212 L376,300 L376,344 L140,344 Z"
+        fill="url(#area)"/>
+
+  <path d="M140,196 L214,258 L290,212 L376,300"
+        fill="none" stroke="#FFFFFF" stroke-width="28"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="140" cy="196" r="19" fill="#FFFFFF"/>
+  <circle cx="214" cy="258" r="19" fill="#FFFFFF"/>
+  <circle cx="290" cy="212" r="19" fill="#FFFFFF"/>
+  <circle cx="376" cy="300" r="19" fill="#FFFFFF"/>
+</svg>

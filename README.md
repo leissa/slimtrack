@@ -1,5 +1,22 @@
 # SlimTrack
 
+<p align="center">
+  <img src="docs/logo/logo-512.png" alt="SlimTrack logo" width="150">
+</p>
+
+<p align="center">
+  <a href="https://github.com/leissa/slimtrack/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/leissa/slimtrack/ci.yml?branch=master&label=tests&logo=github&style=flat-square"></a>
+  <a href="https://github.com/leissa/slimtrack/actions/workflows/release.yml"><img alt="Release" src="https://img.shields.io/github/actions/workflow/status/leissa/slimtrack/release.yml?label=release&logo=github&style=flat-square"></a>
+  <a href="https://github.com/leissa/slimtrack/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/leissa/slimtrack?label=latest&logo=github&style=flat-square"></a>
+  <a href="https://leissa.github.io/slimtrack/fdroid/repo/"><img alt="F-Droid" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fleissa.github.io%2Fslimtrack%2Ffdroid%2Frepo%2Findex-v1.json&query=%24.packages%5B%27com.leissa.slimtrack%27%5D%5B0%5D.versionName&label=F-Droid&logo=fdroid&logoColor=white&color=1976D2&style=flat-square"></a>
+</p>
+
+<p align="center">
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white&style=flat-square">
+  <img alt="Kotlin 2.2" src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white&style=flat-square">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/leissa/slimtrack?style=flat-square&color=blue"></a>
+</p>
+
 A small diet and weight diary for Android. Log meals per meal, track calories and macros
 against daily goals, record weight and exercise, and see trends over time.
 
@@ -94,7 +111,7 @@ app/src/main/java/com/leissa/slimtrack/
 tools/extract_bls.py         regenerates the bundled BLS table from the official workbook
 tools/release.sh             bumps the version, commits, tags and pushes a release
 .github/workflows/           CI and release automation
-docs/                        README images, including the F-Droid repository QR code
+docs/                        logo and README images, including the F-Droid repository QR code
 fdroid/metadata/             F-Droid app metadata
 ```
 
