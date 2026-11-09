@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+keystore.properties
+*.jks
+*.keystore
+/fdroid/config.yml
+/fdroid/keystore.jks
+/fdroid/repo/
+/fdroid/archive/
+/public

@@ -1,0 +1,36 @@
+Categories:
+  - Diet
+  - Sports & Health
+License: MIT
+SourceCode: https://github.com/leissa/slimtrack
+IssueTracker: https://github.com/leissa/slimtrack/issues
+Repo: https://github.com/leissa/slimtrack
+RepoType: git
+AntiFeatures:
+  - NonFreeNet
+Summary: Local diet and weight diary
+Description: |
+  SlimTrack is a diet and weight diary that keeps your data on your device. Log meals,
+  track calories and macros against daily goals, record weight and exercise, and see
+  trends over time.
+
+  Features:
+
+  * Daily diary with four meals, calories and macros, plus exercise that raises the day's calorie budget.
+  * Weight entries with BMI, target weight and a chart with raw values and 3-day and 7-day averages, in metric or imperial units.
+  * Diet tiers and a goal recommendation based on basal metabolic rate and activity level.
+  * Food search across the bundled German Bundeslebensmittelschlüssel 4.0 table (7,140 foods), FDDB and Open Food Facts.
+  * Barcode scanning with the camera.
+
+  Everything is stored in a local database. Android Auto Backup and device-to-device
+  transfer are disabled, so the diary never leaves the device. Food search and barcode
+  lookup are the only network requests and they send only the search term or the scanned
+  barcode.
+
+  Food search uses FDDB, a third-party service with its own terms and privacy policy, and
+  Open Food Facts. Barcode scanning uses Google ML Kit, which is not free software.
+
+  SlimTrack is not a medical device and does not replace advice from a health professional.
+
+  The Bundeslebensmittelschlüssel 4.0 data is © Max Rubner-Institut (2025), licensed
+  under CC BY 4.0. Open Food Facts data is available under the ODbL.
