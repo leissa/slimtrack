@@ -1,0 +1,7 @@
+# ML Kit registers its components through classes listed in the manifest and
+# instantiates them reflectively. R8 may strip the constructors even though the
+# classes themselves are kept, which makes BarcodeScanning.getClient() return a
+# null component and crash. Keep the constructors as well.
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}
