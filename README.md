@@ -20,6 +20,22 @@ Backup and device-to-device transfer are disabled, so the diary never leaves the
   - **Open Food Facts** — international branded products and barcode lookup
 - Barcode scanning with CameraX and ML Kit
 
+## Install
+
+<p>
+  <img src="docs/fdroid-repo-qr.png" alt="QR code for the SlimTrack F-Droid repository" width="220">
+</p>
+
+Scan this QR code with F-Droid (**Settings → Repositories → + → scan**), or add the
+repository address manually:
+
+```text
+https://leissa.github.io/slimtrack/fdroid/repo
+```
+
+Then refresh the repository list and install or update SlimTrack. The same APK is attached
+to each GitHub release for manual installation.
+
 ## Stack
 
 - Kotlin 2.2 + Jetpack Compose (Material 3)
@@ -50,158 +66,13 @@ Start the emulator without Android Studio:
 ./gradlew :app:testDebugUnitTest   # JVM unit tests
 ./gradlew :app:lintDebug           # Android lint
 ./gradlew :app:assembleDebug       # debug APK
-./gradlew :app:assembleRelease     # release APK (unsigned without a signing config)
+./gradlew :app:assembleRelease     # release APK
 ```
 
 `.github/workflows/ci.yml` runs unit tests, lint, and the debug and release builds on
 every push to the default branch, every pull request, and on manual dispatch. Failed runs
 upload the test and lint reports; successful runs keep the debug APK as a workflow
-artifact for 14 days. No signing secrets are needed for CI.
-
-## Release signing
-
-Create a keystore once and keep it outside the repository:
-
-```bash
-mkdir -p ~/keystores
-keytool -genkeypair -v \
-    -keystore ~/keystores/slimtrack-release.jks \
-    -alias slimtrack \
-    -keyalg RSA -keysize 4096 -validity 10000 \
-    -dname "CN=SlimTrack"
-```
-
-`keytool` asks for the store and key passwords. Back up the keystore and both passwords:
-Android only installs an update when it is signed with the same key, so losing them means
-existing users have to uninstall and reinstall.
-
-For local builds, create `keystore.properties` in the repository root (it is ignored by
-git). Use an absolute path, or a path relative to the repository root:
-
-```properties
-storeFile=/home/you/keystores/slimtrack-release.jks
-storePassword=change-me
-keyAlias=slimtrack
-keyPassword=change-me
-```
-
-CI instead passes the same values through environment variables:
-
-| Variable | Meaning |
-| --- | --- |
-| `SLIMTRACK_KEYSTORE` | Path to the keystore file |
-| `SLIMTRACK_KEYSTORE_PASSWORD` | Keystore password |
-| `SLIMTRACK_KEY_ALIAS` | Key alias |
-| `SLIMTRACK_KEY_PASSWORD` | Key password |
-
-When neither source is complete, `:app:assembleRelease` still builds, but the APK is left
-unsigned. That keeps CI and fresh checkouts working without secrets.
-
-Before every release, increase `versionCode` and set a new `versionName` in
-`app/build.gradle.kts`. F-Droid only offers an update when `versionCode` is higher than
-the version it already knows.
-
-## Publishing a release and the F-Droid repository
-
-`.github/workflows/release.yml` runs the unit tests and lint, builds a signed APK, verifies
-its signature, generates an F-Droid repository index with `fdroidserver`, and publishes
-the repository to GitHub Pages. It runs when a `v*` tag is pushed or when started manually
-from the Actions tab.
-
-The workflow installs a pinned `fdroidserver` release from PyPI into a temporary virtual
-environment. Ubuntu's packaged `fdroidserver` is older and its APK parser cannot read
-resources from APKs built with recent Android Gradle Plugin versions. If you validate the
-repository locally, install the same version:
-
-```bash
-python3 -m venv .fdroid-venv
-.fdroid-venv/bin/pip install fdroidserver==2.4.5
-```
-
-A typical release:
-
-```bash
-# bump versionCode and versionName in app/build.gradle.kts first
-git add app/build.gradle.kts
-git commit -m "Release 1.1"
-git tag v1.1
-git push origin master v1.1
-```
-
-The workflow then builds and signs the APK, updates the repository, and attaches the APK
-to the GitHub release for the tag.
-
-The repository is served at:
-
-```text
-https://<owner>.github.io/<repository>/fdroid/repo/
-```
-
-for example `https://example.github.io/slimtrack/fdroid/repo/`. If the repository is named
-`<owner>.github.io`, leave out the `/<repository>` part; the workflow detects that case.
-
-One-time GitHub setup:
-
-1. Push this project to GitHub.
-2. Add the secrets below under **Settings → Secrets and variables → Actions**. Generate
-   the base64 values with `base64 -w0 <file>` on Linux or
-   `base64 -i <file> | tr -d '\n'` on macOS.
-3. Under **Settings → Pages**, set the source to **GitHub Actions**.
-4. Run the **Release** workflow once, either by pushing a tag such as `v1.0` or with
-   **Run workflow**.
-
-| Secret | Value |
-| --- | --- |
-| `APP_KEYSTORE_BASE64` | App signing keystore, base64 encoded |
-| `APP_KEYSTORE_PASSWORD` | App keystore password |
-| `APP_KEY_ALIAS` | App key alias |
-| `APP_KEY_PASSWORD` | App key password |
-| `FDROID_KEYSTORE_BASE64` | Repository signing keystore, base64 encoded |
-| `FDROID_KEYSTORE_PASSWORD` | Repository keystore password |
-| `FDROID_KEY_PASSWORD` | Repository key password |
-
-Encode the two keystores with:
-
-```bash
-base64 -w0 ~/keystores/slimtrack-release.jks   # APP_KEYSTORE_BASE64
-base64 -w0 ~/keystores/slimtrack-fdroid.jks    # FDROID_KEYSTORE_BASE64
-```
-
-`APP_KEY_ALIAS` is the alias you chose when creating the app key (`slimtrack` in the
-example above).
-
-The app keystore signs APKs. The repository keystore signs the F-Droid index and must
-stay stable across releases. Create it once, with the alias `slimtrack`:
-
-```bash
-keytool -genkeypair -v \
-    -keystore ~/keystores/slimtrack-fdroid.jks \
-    -alias slimtrack \
-    -keyalg RSA -keysize 4096 -validity 10000 \
-    -dname "CN=SlimTrack F-Droid Repository"
-```
-
-Put its base64 encoding in `FDROID_KEYSTORE_BASE64`. Back it up as well; a new repository
-key makes every client reject the new index until the repository is removed and added
-again.
-
-The workflow publishes only the newest APK. The app's F-Droid metadata lives in
-`fdroid/metadata/com.leissa.slimtrack.yml`; it declares `NonFreeNet` because food search
-uses FDDB, and the description notes that barcode scanning uses Google ML Kit.
-
-### Installing from the repository
-
-On the phone, open **F-Droid → Settings → Repositories → +**, paste the repository URL,
-and add it. Then refresh the repository list and install or update SlimTrack from F-Droid.
-For tag builds, the same APK is also attached to the GitHub release for manual
-installation; manual runs keep it as a workflow artifact.
-
-The app is not submitted to f-droid.org:
-
-- ML Kit barcode scanning is proprietary, and FDDB is a non-free network service.
-- Official builds would need a reproducible buildserver with AGP 9.5 and SDK 37 support.
-
-A self-hosted binary repository is therefore the practical option today.
+artifact for 14 days.
 
 ## Project layout
 
@@ -222,6 +93,7 @@ app/src/main/java/com/leissa/slimtrack/
 └── util/                    units, dates and number formatting
 tools/extract_bls.py         regenerates the bundled BLS table from the official workbook
 .github/workflows/           CI and release automation
+docs/                        README images, including the F-Droid repository QR code
 fdroid/metadata/             F-Droid app metadata
 ```
 
