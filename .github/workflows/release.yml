@@ -103,8 +103,18 @@ jobs:
 
       - name: Install fdroidserver
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends fdroidserver
+          # Ubuntu's fdroidserver 2.2.1 ships an androguard that cannot parse
+          # resources.arsc from AGP >= 9 APKs ("res1 must be zero!"). Install a
+          # current release in a venv instead. Keep this pin in sync with the
+          # version used locally when validating fdroid/metadata.
+          if ! python3 -m venv "$RUNNER_TEMP/fdroid-venv"; then
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends python3-venv
+            python3 -m venv "$RUNNER_TEMP/fdroid-venv"
+          fi
+          "$RUNNER_TEMP/fdroid-venv/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/fdroid-venv/bin/python" -m pip install "fdroidserver==2.4.5"
+          echo "$RUNNER_TEMP/fdroid-venv/bin" >> "$GITHUB_PATH"
           echo "$BUILD_TOOLS" >> "$GITHUB_PATH"
 
       - name: Build F-Droid repository index

@@ -20,4 +20,5 @@ keystore.properties
 /fdroid/keystore.jks
 /fdroid/repo/
 /fdroid/archive/
+/.fdroid-venv/
 /public

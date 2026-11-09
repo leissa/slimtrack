@@ -108,6 +108,16 @@ its signature, generates an F-Droid repository index with `fdroidserver`, and pu
 the repository to GitHub Pages. It runs when a `v*` tag is pushed or when started manually
 from the Actions tab.
 
+The workflow installs a pinned `fdroidserver` release from PyPI into a temporary virtual
+environment. Ubuntu's packaged `fdroidserver` is older and its APK parser cannot read
+resources from APKs built with recent Android Gradle Plugin versions. If you validate the
+repository locally, install the same version:
+
+```bash
+python3 -m venv .fdroid-venv
+.fdroid-venv/bin/pip install fdroidserver==2.4.5
+```
+
 A typical release:
 
 ```bash
