@@ -92,6 +92,7 @@ app/src/main/java/com/leissa/slimtrack/
 │   └── components/          shared progress bars
 └── util/                    units, dates and number formatting
 tools/extract_bls.py         regenerates the bundled BLS table from the official workbook
+tools/release.sh             bumps the version, commits, tags and pushes a release
 .github/workflows/           CI and release automation
 docs/                        README images, including the F-Droid repository QR code
 fdroid/metadata/             F-Droid app metadata
