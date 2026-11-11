@@ -36,7 +36,8 @@ Backup and device-to-device transfer are disabled, so the diary never leaves the
 - Food search across three sources:
   - **BLS 4.0** — 7,140 German foods, bundled offline
   - **FDDB** — German branded and user-entered products
-  - **Open Food Facts** — international branded products and barcode lookup
+  - **Open Food Facts** — international branded products, tried first for barcodes
+  - Barcode lookup falls back to FDDB when Open Food Facts has no product
 - Barcode scanning with CameraX and ML Kit
 
 ## Install
@@ -99,7 +100,7 @@ artifact for 14 days.
 app/src/main/java/com/leissa/slimtrack/
 ├── SlimTrackApp.kt          Application, owns AppContainer
 ├── MainActivity.kt
-├── data/                    Room entities, DAOs, database, seed foods, BLS table
+├── data/                    Room entities, DAOs, database, BLS table
 │   └── remote/              FDDB and Open Food Facts clients
 ├── ui/
 │   ├── SlimTrackRoot.kt     bottom navigation
@@ -129,7 +130,9 @@ schema changes can be migrated safely.
 - `WeightEntry` — one per day (epoch day, kg).
 - `ExerciseEntry` — date, activity, minutes and the calories burned at logging time.
 
-The first launch seeds a starter food list (`data/SeedFoods.kt`).
+"My foods" only holds foods the user created or imported; there is no starter list.
+Removing a food hides it (the `hidden` flag) so diary entries that reference it keep
+their nutrition, and importing the same product again reveals it.
 
 ## Food data
 
@@ -146,7 +149,9 @@ python3 tools/extract_bls.py \
 The official workbook is a free download from <https://blsdb.de> (CC BY 4.0).
 
 FDDB has no public API. `FddbClient` reads the anonymous website search page and fetches
-nutrition from a product page only when the user picks that result. Keep requests sparse.
+nutrition from a product page only when the user picks that result. Barcodes are resolved
+through the site's autocomplete endpoint (`/xml/ac/1/de/<barcode>`), because the search
+page itself ignores them. Keep requests sparse.
 
 Attribution shown in the app's Profile screen:
 

@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -148,8 +149,11 @@ fun TodayScreen(viewModel: TodayViewModel, modifier: Modifier = Modifier) {
     if (sheetOpen) {
         AddEntrySheet(
             foods = state.foods,
+            initialModeName = remember { viewModel.lastAddFoodMode },
+            onModeSelected = viewModel::rememberAddFoodMode,
             initialMeal = Meal.valueOf(sheetMeal),
             onDismiss = { sheetOpen = false },
+            onRemoveFood = viewModel::removeFood,
             onAdd = { foodId, meal, quantity ->
                 viewModel.addEntry(foodId, meal, quantity)
                 sheetOpen = false

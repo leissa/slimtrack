@@ -34,15 +34,32 @@ class FddbClient {
     /** Reads energy and macros for 100 g from the product page behind [result]. */
     suspend fun fetchProduct(result: FoodSearchResult): Food? = withContext(Dispatchers.IO) {
         val reference = result.reference ?: return@withContext null
+        fetchProductPage(reference, result.name)
+    }
+
+    /**
+     * Resolves a scanned barcode to the FDDB product behind it. The site's own
+     * search page ignores barcodes, but its autocomplete endpoint matches them.
+     */
+    suspend fun fetchByBarcode(barcode: String): Food? = withContext(Dispatchers.IO) {
+        val code = barcode.filter(Char::isDigit)
+        if (code.isEmpty()) return@withContext null
+
+        val hit = parseAutocomplete(get("$BASE/xml/ac/1/de/$code")).firstOrNull()
+            ?: return@withContext null
+        fetchProduct(hit)
+    }
+
+    private fun fetchProductPage(reference: String, name: String): Food? {
         val page = get(BASE + reference)
 
         val calories = quickstat(page, "Kalorien")
             ?: tableValue(page, "Kalorien", "kcal")
-            ?: return@withContext null
-        if (calories < 0.0) return@withContext null
+            ?: return null
+        if (calories < 0.0) return null
 
-        Food(
-            name = result.name.take(90),
+        return Food(
+            name = name.take(90),
             servingLabel = "100 g",
             calories = calories.roundToInt(),
             proteinGrams = quickstat(page, "Protein") ?: tableValue(page, "Protein", "g") ?: 0.0,
@@ -53,6 +70,16 @@ class FddbClient {
             isCustom = true,
         )
     }
+
+    private fun parseAutocomplete(html: String): List<FoodSearchResult> =
+        AUTOCOMPLETE.findAll(html).mapNotNull { match ->
+            val reference = match.groupValues[1]
+            val name = unescape(match.groupValues[2].replace(TAG, " "))
+                .replace(WHITESPACE, " ")
+                .trim()
+            if (name.isEmpty()) return@mapNotNull null
+            FoodSearchResult(name = name.take(90), source = FoodSource.FDDB, reference = reference)
+        }.toList()
 
     private fun parseSearch(html: String): List<FoodSearchResult> =
         ROW.findAll(html).mapNotNull { rowMatch ->
@@ -156,6 +183,12 @@ class FddbClient {
         val NUMBER = Regex("[0-9][0-9.,\\s]*")
         val ROW = Regex("<div class='rl[ab]'[^>]*>(.*?)</div>", RegexOption.DOT_MATCHES_ALL)
         val LINK = Regex("<a\\s+href='([^']+)'[^>]*>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
+        val AUTOCOMPLETE = Regex(
+            "window\\.location\\.href='(/db/de/lebensmittel/[^']+)'[^>]*>\\s*<div id='acelement\\d+'>(.*?)</div>",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+        val TAG = Regex("<[^>]*>")
+        val WHITESPACE = Regex("\\s+")
         val BRAND = Regex(
             "<span class='rld'>[^<]*<a[^>]*>(.*?)</a>",
             RegexOption.DOT_MATCHES_ALL,

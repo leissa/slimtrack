@@ -11,23 +11,21 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FoodDao {
-    @Query("SELECT * FROM foods ORDER BY name COLLATE NOCASE")
+    @Query("SELECT * FROM foods WHERE hidden = 0 ORDER BY name COLLATE NOCASE")
     fun observeAll(): Flow<List<Food>>
 
     @Query("SELECT * FROM foods WHERE name = :name AND calories = :calories LIMIT 1")
     suspend fun findByNameAndCalories(name: String, calories: Int): Food?
 
-    @Query("SELECT COUNT(*) FROM foods")
-    suspend fun count(): Int
-
     @Insert
     suspend fun insert(food: Food): Long
 
-    @Insert
-    suspend fun insertAll(foods: List<Food>)
+    /** Removes a food from "My foods" while diary entries keep referencing it. */
+    @Query("UPDATE foods SET hidden = 1 WHERE id = :id")
+    suspend fun hide(id: Long)
 
-    @Delete
-    suspend fun delete(food: Food)
+    @Query("UPDATE foods SET hidden = 0 WHERE id = :id")
+    suspend fun unhide(id: Long)
 }
 
 @Dao

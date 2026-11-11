@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WeightEntry::class,
         ExerciseEntry::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -81,13 +81,25 @@ abstract class SlimTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the soft-delete flag for "My foods" and retires the starter list
+         * that earlier versions seeded on first launch. Hidden rows are kept so
+         * diary entries that use them still contribute their nutrition.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `foods` ADD COLUMN `hidden` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE `foods` SET `hidden` = 1 WHERE `isCustom` = 0")
+            }
+        }
+
         fun build(context: Context): SlimTrackDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 SlimTrackDatabase::class.java,
                 "slimtrack.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

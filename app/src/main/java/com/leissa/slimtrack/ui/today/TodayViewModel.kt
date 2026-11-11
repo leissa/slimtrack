@@ -19,6 +19,7 @@ import com.leissa.slimtrack.data.Goals
 import com.leissa.slimtrack.data.Meal
 import com.leissa.slimtrack.data.Profile
 import com.leissa.slimtrack.util.trackDayChanges
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -125,6 +126,17 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         initialValue = TodayUiState(),
     )
 
+    /**
+     * Name of the Add Food tab used last, so reopening the sheet starts there.
+     * Null until the user picks a tab for the first time.
+     */
+    val lastAddFoodMode: String?
+        get() = container.preferences.lastAddFoodMode
+
+    fun rememberAddFoodMode(mode: String) {
+        container.preferences.lastAddFoodMode = mode
+    }
+
     fun previousDay() {
         selectedDate.value = selectedDate.value.minusDays(1)
     }
@@ -187,12 +199,23 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Removes a food from the picker without touching diary entries that use it. */
+    fun removeFood(food: Food) {
+        viewModelScope.launch { container.foodDao.hide(food.id) }
+    }
+
     /** Stores a product from BLS, FDDB, Open Food Facts or a scan, then logs one serving. */
     fun addProduct(food: Food, meal: Meal, quantity: Double) {
         viewModelScope.launch {
             // Products are cached locally, so reuse an identical row instead of piling up copies.
+            // Re-adding a previously removed product brings it back into "My foods".
             val existing = container.foodDao.findByNameAndCalories(food.name, food.calories)
-            val foodId = existing?.id ?: container.foodDao.insert(food.copy(isCustom = true))
+            val foodId = if (existing != null) {
+                if (existing.hidden) container.foodDao.unhide(existing.id)
+                existing.id
+            } else {
+                container.foodDao.insert(food.copy(isCustom = true))
+            }
             container.diaryDao.insert(
                 DiaryEntry(
                     dateEpochDay = selectedDate.value.toEpochDay(),
@@ -272,7 +295,37 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
     suspend fun resolveSearchResult(result: FoodSearchResult): Food? =
         result.food ?: container.fddb.fetchProduct(result)
 
-    suspend fun lookupBarcode(barcode: String): Food? = container.openFoodFacts.fetchByBarcode(barcode)
+    /**
+     * Resolves a scanned barcode to a product. Open Food Facts is tried first
+     * because its data is openly licensed; FDDB then covers German private
+     * labels (Lidl, Aldi, ...) that are missing from OFF.
+     */
+    suspend fun lookupBarcode(barcode: String): FoodSearchResult? {
+        val openFoodFacts = try {
+            container.openFoodFacts.fetchByBarcode(barcode)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            null
+        }
+        if (openFoodFacts != null) {
+            return FoodSearchResult(
+                name = openFoodFacts.name,
+                source = FoodSource.OPEN_FOOD_FACTS,
+                food = openFoodFacts,
+            )
+        }
+
+        val fddb = try {
+            container.fddb.fetchByBarcode(barcode)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            null
+        } ?: return null
+
+        return FoodSearchResult(name = fddb.name, source = FoodSource.FDDB, food = fddb)
+    }
 
     companion object {
         private const val DEFAULT_WEIGHT_KG = 75.0

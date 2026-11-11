@@ -24,11 +24,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -73,8 +75,11 @@ private enum class AddMode(val label: String) {
 @Composable
 fun AddEntrySheet(
     foods: List<Food>,
+    initialModeName: String?,
+    onModeSelected: (String) -> Unit,
     initialMeal: Meal,
     onDismiss: () -> Unit,
+    onRemoveFood: (Food) -> Unit,
     onAdd: (foodId: Long, meal: Meal, quantity: Double) -> Unit,
     onAddCustom: (
         name: String,
@@ -89,13 +94,16 @@ fun AddEntrySheet(
     onAddProduct: (food: Food, meal: Meal, quantity: Double) -> Unit,
     onSearchFoods: suspend (String) -> FoodSearchOutcome,
     onResolveSearchResult: suspend (FoodSearchResult) -> Food?,
-    onLookupBarcode: suspend (String) -> Food?,
+    onLookupBarcode: suspend (String) -> FoodSearchResult?,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    var modeName by rememberSaveable { mutableStateOf(AddMode.MY_FOODS.name) }
-    var query by rememberSaveable { mutableStateOf("") }
+    val startMode = AddMode.entries.firstOrNull { it.name == initialModeName } ?: AddMode.MY_FOODS
+    var modeName by rememberSaveable { mutableStateOf(startMode.name) }
+    // Each tab keeps its own search text, so switching tabs never wipes what was typed.
+    var localQuery by rememberSaveable { mutableStateOf("") }
+    var databaseQuery by rememberSaveable { mutableStateOf("") }
     var selectedFoodId by rememberSaveable { mutableStateOf<Long?>(null) }
     var mealName by rememberSaveable { mutableStateOf(initialMeal.name) }
     var quantity by rememberSaveable { mutableDoubleStateOf(1.0) }
@@ -112,18 +120,18 @@ fun AddEntrySheet(
     var scanning by remember { mutableStateOf(false) }
     var manualBarcode by rememberSaveable { mutableStateOf("") }
 
-    // Requests are tagged so an answer that arrives after the user changed mode,
-    // typed another query or tapped another product is ignored instead of displayed.
+    // Requests are tagged so an answer that arrives after the user started another
+    // search, changed tabs or tapped another product is ignored instead of displayed.
     var searchRequest by remember { mutableIntStateOf(0) }
     var resolveRequest by remember { mutableIntStateOf(0) }
     var lookupRequest by remember { mutableIntStateOf(0) }
     var resolveJob by remember { mutableStateOf<Job?>(null) }
 
-    val mode = AddMode.valueOf(modeName)
+    val mode = AddMode.entries.firstOrNull { it.name == modeName } ?: AddMode.MY_FOODS
     val meal = Meal.valueOf(mealName)
     val selectedFood = foods.firstOrNull { it.id == selectedFoodId }
-    val filteredFoods = remember(foods, query) {
-        val needle = query.trim()
+    val filteredFoods = remember(foods, localQuery) {
+        val needle = localQuery.trim()
         if (needle.isEmpty()) {
             foods
         } else {
@@ -131,24 +139,22 @@ fun AddEntrySheet(
         }
     }
 
-    /** Cancels in-flight work and clears both modes' messages when the user switches tabs. */
-    fun cancelRequests() {
-        searchRequest++
+    /**
+     * Drops taps that belonged to a tab the user just left: a launched scan lookup or
+     * a product still loading must not take over the sheet while another tab is shown.
+     * Search results are kept, so returning to a tab finds its text and hits intact.
+     */
+    fun cancelPendingPicks() {
         resolveRequest++
         lookupRequest++
         resolveJob?.cancel()
         resolveJob = null
-        databaseLoading = false
-        databaseError = null
-        databaseNote = null
-        databaseResults = emptyList()
         resolving = null
         scanLoading = false
-        scanError = null
     }
 
     fun searchDatabases() {
-        val term = query.trim()
+        val term = databaseQuery.trim()
         if (term.isEmpty()) return
         val request = ++searchRequest
         databaseLoading = true
@@ -217,16 +223,12 @@ fun AddEntrySheet(
         scanError = null
         scope.launch {
             try {
-                val food = onLookupBarcode(clean)
+                val product = onLookupBarcode(clean)
                 if (request != lookupRequest) return@launch
-                if (food == null) {
-                    scanError = "No product for barcode $clean."
+                if (product == null) {
+                    scanError = "No product for barcode $clean in Open Food Facts or FDDB."
                 } else {
-                    pendingProduct = FoodSearchResult(
-                        name = food.name,
-                        source = FoodSource.OPEN_FOOD_FACTS,
-                        food = food,
-                    )
+                    pendingProduct = product
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -312,8 +314,8 @@ fun AddEntrySheet(
                                 selected = mode == option,
                                 onClick = {
                                     modeName = option.name
-                                    cancelRequests()
-                                    query = ""
+                                    onModeSelected(option.name)
+                                    cancelPendingPicks()
                                 },
                                 label = { Text(option.label) },
                             )
@@ -323,15 +325,16 @@ fun AddEntrySheet(
 
                     when (mode) {
                         AddMode.MY_FOODS -> LocalFoodPicker(
-                            query = query,
-                            onQueryChange = { query = it },
+                            query = localQuery,
+                            onQueryChange = { localQuery = it },
                             foods = filteredFoods,
                             onSelect = { selectedFoodId = it.id },
+                            onRemove = onRemoveFood,
                         )
 
                         AddMode.DATABASES -> DatabaseFoodPicker(
-                            query = query,
-                            onQueryChange = { query = it },
+                            query = databaseQuery,
+                            onQueryChange = { databaseQuery = it },
                             onSearch = ::searchDatabases,
                             loading = databaseLoading,
                             note = databaseNote,
@@ -373,6 +376,7 @@ private fun LocalFoodPicker(
     onQueryChange: (String) -> Unit,
     foods: List<Food>,
     onSelect: (Food) -> Unit,
+    onRemove: (Food) -> Unit,
 ) {
     OutlinedTextField(
         value = query,
@@ -385,13 +389,18 @@ private fun LocalFoodPicker(
     Spacer(Modifier.height(8.dp))
     LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
         items(foods, key = { it.id }) { food ->
-            FoodRow(food = food, source = null, onClick = { onSelect(food) })
+            FoodRow(
+                food = food,
+                source = null,
+                onClick = { onSelect(food) },
+                onRemove = { onRemove(food) },
+            )
         }
         if (foods.isEmpty()) {
             item {
                 Text(
                     text = if (query.isBlank()) {
-                        "No foods yet. Tap \"New food\" to create one."
+                        "Nothing saved yet. Import a product from \"Databases\" or tap \"New food\"."
                     } else {
                         "No foods match \"$query\""
                     },
@@ -517,7 +526,12 @@ private fun PendingFoodRow(result: FoodSearchResult, loading: Boolean, onClick: 
 }
 
 @Composable
-private fun FoodRow(food: Food, source: FoodSource?, onClick: () -> Unit) {
+private fun FoodRow(
+    food: Food,
+    source: FoodSource?,
+    onClick: () -> Unit,
+    onRemove: (() -> Unit)? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -545,6 +559,15 @@ private fun FoodRow(food: Food, source: FoodSource?, onClick: () -> Unit) {
             )
         }
         Text("${food.calories} kcal", style = MaterialTheme.typography.labelLarge)
+        if (onRemove != null) {
+            IconButton(onClick = onRemove) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Remove ${food.name} from My foods",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

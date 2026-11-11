@@ -27,15 +27,12 @@ class AppContainer(context: Context) {
     val openFoodFacts = OpenFoodFactsClient()
     val fddb = FddbClient()
     val blsFoods = BlsFoods(context.applicationContext.assets)
+    val preferences = Preferences(context)
 
     init {
         scope.launch {
-            // The profile row is the first-launch marker: seed foods only then, so
-            // deleting every food later does not silently bring the starter list back.
+            // Rows are only created once so later edits from settings are never overwritten.
             if (profileDao.get() == null) {
-                if (foodDao.count() == 0) {
-                    foodDao.insertAll(SeedFoods.items)
-                }
                 profileDao.upsert(Profile())
             }
             if (goalsDao.get() == null) {

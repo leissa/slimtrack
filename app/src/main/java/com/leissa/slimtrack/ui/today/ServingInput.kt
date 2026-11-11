@@ -29,6 +29,17 @@ private const val MIN_SERVINGS = 0.05
 private const val MAX_SERVINGS = 20.0
 
 /**
+ * Upper bound for amounts typed in a food's own unit. It only guards against
+ * typos, so it is generous: 100 kg / 100 l, or 100,000 g / 100,000 ml.
+ * Deriving it from [MAX_SERVINGS] instead would stop at about a kilogram for a
+ * "50 g" serving, which is easy to exceed with a few drinks or a family dish.
+ */
+private fun maxAmount(unit: String): Double = when (unit) {
+    "kg", "l" -> 100.0
+    else -> 100_000.0
+}
+
+/**
  * Edits how much of a food is logged.
  *
  * Foods measured in grams or millilitres ("100 g", "250 ml") are entered in
@@ -69,8 +80,8 @@ private fun AmountInput(
             val filtered = raw.filter { it.isDigit() || it == '.' || it == ',' }
             text = filtered
             val amount = filtered.toDecimalOrNull()
-            if (amount != null && amount > 0.0 && amount <= measure.amount * MAX_SERVINGS) {
-                onQuantityChange(measure.servingsFor(amount))
+            if (amount != null && amount > 0.0) {
+                onQuantityChange(measure.servingsFor(amount.coerceAtMost(maxAmount(measure.unit))))
             }
         },
         label = { Text("Amount") },

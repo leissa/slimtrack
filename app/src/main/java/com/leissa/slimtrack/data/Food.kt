@@ -1,5 +1,6 @@
 package com.leissa.slimtrack.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -19,4 +20,10 @@ data class Food(
     val carbsGrams: Double = 0.0,
     val fatGrams: Double = 0.0,
     val isCustom: Boolean = false,
+    /**
+     * Removed from "My foods" but kept so diary entries that reference it keep
+     * their nutrition. Importing the same product again reveals it again.
+     */
+    @ColumnInfo(defaultValue = "0")
+    val hidden: Boolean = false,
 )
